@@ -41,7 +41,7 @@ class Sampler(object):
 			self.weights = torch.tensor(weights).type(torch.float32)
 
 		if add_sos:
-			# If we are doing autoregressive prediction, we need an SOS on our labels.
+			# If we are doing autoregressive prediction, we might want an SOS on our labels.
 			self.sos_token = 2
 			self.eos_token = 3
 			labels = np.concatenate( (np.full((labels.shape[0], 1), self.sos_token), labels), axis=1)
