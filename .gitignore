@@ -1,0 +1,5 @@
+*.code-workspace
+*.egg-info
+__pycache__/
+theory/
+*.pt 
