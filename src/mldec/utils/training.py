@@ -49,6 +49,7 @@ def initialize_optimizer(config, params):
     opt = config.get('opt')
     decay_rate = config.get('sgd_decay_rate')
     decay_patience = config.get('sgd_decay_patience')
+    scheduler = None
     if opt == 'adam':
         optimizer = optim.Adam(params, lr=lr)
     elif opt == 'adadelta':

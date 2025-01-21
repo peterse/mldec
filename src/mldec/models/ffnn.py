@@ -13,11 +13,11 @@ class HiddenLayer(nn.Module):
         return self.act(self.layer(x))
 
 
-class FFNNlayered(nn.Module):
+class FFNN(nn.Module):
     "Core encoder is a stack of N layers"
 
     def __init__(self, input_dim, hidden_dim, output_dim, N_layers):
-        super(FFNNlayered, self).__init__()
+        super(FFNN, self).__init__()
         if isinstance(hidden_dim, int):
             hidden_dim = [hidden_dim]*N_layers
         self.first =  HiddenLayer(input_dim, hidden_dim[0])

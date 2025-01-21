@@ -1,4 +1,6 @@
 import torch
+from torch import nn
+
 
 class WeightedSequenceLoss(nn.Module):
     """Weight individual training examples

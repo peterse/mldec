@@ -1,7 +1,8 @@
 """toy_problem_data.py - This module constructs the toy problem dataset"""
 
 import numpy as np
-from mldec.bit_tools import binarr
+import torch
+from mldec.utils.bit_tools import binarr
 
 
 def repetition_pcm(n):
@@ -45,9 +46,9 @@ def noise_model(s, n, dataset_config, permute=None):
     p1, p2 = dataset_config['p1'], dataset_config['p2']
     if permute is not None:
         s = s[:,permute]
-    p_first = np.prod(p1*s[:,:n//2] +(1-p1)*(1-s[:,:n//2]), axis=1)
-    p_second = np.prod(p2*s[:,n//2:] + (1-p2)*(1-s[:,n//2:]), axis=1)
-    return np.multiply(p_first, p_second)
+    p_first = torch.prod(p1*s[:,:n//2] +(1-p1)*(1-s[:,:n//2]), axis=1)
+    p_second = torch.prod(p2*s[:,n//2:] + (1-p2)*(1-s[:,n//2:]), axis=1)
+    return torch.multiply(p_first, p_second)
 
 
 # def sample_bitstring_v1(n, p1, p2, n_data):
