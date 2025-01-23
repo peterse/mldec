@@ -33,19 +33,19 @@ def main(config):
         # these are the parameterized hyperparameters we want to tune over
         hyper_config = {
             'lr': tune.loguniform(1e-4, 1e-2),
-            'hidden_dim': tune.choice([16, 32, 64]),
-            'n_layers': tune.choice([1, 2, 3]),
+            'hidden_dim': tune.choice([8, 16, 32, 64]),
+            'n_layers': tune.choice([1, 2, 3, 4]),
         }
         # these specify how tune will work
         
         hyper_settings = {
-            "total_cpus": 2,
+            "total_cpus": 20,
             "total_gpus": 0,
             "cpus_per_worker": 1, #i.e. cpus per trial
             "gpus_per_worker": 0,
-            "max_concurrent_trials": 1,
-            "max_epochs": 100, # this is the max epochs any trial is allowed to run
-            "num_samples": 2, # this is equal to total trials if no grid search
+            "max_concurrent_trials": 20,
+            "max_epochs": 10000, # this is the max epochs any trial is allowed to run
+            "num_samples": 500, # this is equal to total trials if no grid search
             "tune_directory": tune_directory,
             "tune_path": tune_path,
         }
