@@ -11,7 +11,7 @@ from ray.tune.schedulers import FIFOScheduler
 from mldec.utils import evaluation, training
 from mldec.models import initialize
 
-def train_model(model, dataset_module, config, dataset_config):
+def train_model(model_wrapper, dataset_module, config, dataset_config):
 
     max_epochs = config['max_epochs']
     batch_size = config['batch_size']
@@ -21,15 +21,13 @@ def train_model(model, dataset_module, config, dataset_config):
     mode = config['mode']
     n_train = config['n_train']
     lr = config['lr']
-    opt = config['opt']
-    decay_rate = config['sgd_decay_rate']
-    decay_patience = config['sgd_decay_patience']
+    use_sos_eos = config.get('use_sos_eos', False)
 
     history = []    
-    criterion = evaluation.WeightedSequenceLoss(torch.nn.BCELoss )
+    criterion = evaluation.WeightedSequenceLoss(torch.nn.BCELoss)
 
     opt = config.get('opt')
-    optimizer, scheduler = training.initialize_optimizer(config, model.parameters())
+    optimizer, scheduler = training.initialize_optimizer(config, model_wrapper.model.parameters())
     early_stopping = training.EarlyStopping(patience=patience) 
     max_val_acc = -1
 
@@ -42,11 +40,10 @@ def train_model(model, dataset_module, config, dataset_config):
         # more efficient whenever that number is much smaller than the expected amount of training data.
         n_batches = n_train // batch_size
         downsampled_weights = np.zeros(2**n) # this will accumulate a histogram of the training set over all batches
-        if mode in ['train', 'tune']:
-            X, Y = dataset_module.create_dataset(n)
-            weights = dataset_module.noise_model(Y, n, dataset_config)
-        elif mode == 'verify':
-            X, Y, weights = dataset_module.uniform_over_good_examples(n, dataset_config)
+        if config.get('only_good_examples'):
+            X, Y, weights = dataset_module.uniform_over_good_examples(n, dataset_config, use_sos_eos=use_sos_eos)
+        else:
+            X, Y, weights = dataset_module.create_dataset_training(n, dataset_config, use_sos_eos=use_sos_eos)
 
         weights_tensor = torch.tensor(weights, dtype=torch.float32)  # true distribution of bitstrings  
         train_loss = 0        
@@ -55,11 +52,7 @@ def train_model(model, dataset_module, config, dataset_config):
             Xb, Yb, weightsb, histb = dataset_module.sample_virtual_XY(weights_tensor.numpy(), batch_size, n, dataset_config)
             downsampled_weights += histb
             # Do gradient descent on a virtual batch of data
-            optimizer.zero_grad()
-            Y_pred = model(Xb)
-            loss = criterion(Y_pred, Yb, weightsb)
-            loss.backward()
-            optimizer.step()
+            loss = model_wrapper.training_step(Xb, Yb, weightsb, optimizer, criterion)
             train_loss += loss.item()
 
         train_loss = train_loss / n_batches
@@ -67,10 +60,10 @@ def train_model(model, dataset_module, config, dataset_config):
 
         # Virtual Validation
         downsampled_weights_tensor = torch.tensor(downsampled_weights, dtype=torch.float32)
-        model.eval()        
-        val_loss = evaluation.weighted_loss(model, X, Y, weights_tensor, criterion)        
-        val_acc = evaluation.weighted_accuracy(model, X, Y, weights_tensor)
-        train_acc = evaluation.weighted_accuracy(model, X, Y, downsampled_weights_tensor) # training accuracy is evaluated on the same data from this epoch.
+        model_wrapper.model.eval()        
+        val_loss = evaluation.weighted_loss(model_wrapper, X, Y, weights_tensor, criterion)        
+        val_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, weights_tensor)
+        train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_weights_tensor) # training accuracy is evaluated on the same data from this epoch.
 
         if config.get('opt') == 'sgd':
             scheduler.step(val_acc)
@@ -97,7 +90,7 @@ def train_model(model, dataset_module, config, dataset_config):
             if config["mode"] == 'tune':
                 ray.train.report(epoch_results)
 
-        early_stopping(val_loss, model)
+        early_stopping(val_loss, model_wrapper.model)
         if early_stopping.early_stop:
             print("Early stopping")
             # raise GetOutOfLoop

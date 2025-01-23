@@ -1,31 +1,31 @@
-# REQUIREMENTS: ray[tune], 
+# PYTHON PACKAGE REQUIREMENTS: ray[tune], 
 import ray
 from ray import tune
-from ray.tune import CLIReporter
-from ray.train import RunConfig
-from ray.tune.schedulers import FIFOScheduler
 
 import psutil
 
 def main():
-    num_cpus = 4
+    # `num_cpus` is the number of CPUs that the program tries to allocate in advance.
+    # This can limit the resources available, e.g. when using a SLURM partition
+    num_cpus = 20
     ray.init(num_cpus=num_cpus, _temp_dir=None)
     
-    trainable = lambda x: print(psutil.Process().cpu_num())
+    trainable = lambda x: print("hello from cpu:", psutil.Process().cpu_num())
 
-    # control how much paralelism to invoke
+    # `max_concurrent_trials` is how many of `num_cpus` the program will try to use
     tune_config = tune.TuneConfig(
-        num_samples=4,
+        num_samples=40,
+        max_concurrent_trials=40,
         trial_dirname_creator=lambda x: "scratchwork",
-        max_concurrent_trials=4,
     )
     config = {"a": tune.uniform(0, 1)}
-
-    # Uncomment this to enable distributed execution
 
     tuner = tune.Tuner(
         trainable,
         param_space=config,
         tune_config=tune_config,
     )
-    results = tuner.fit()
+    tuner.fit()
+
+if __name__ == "__main__":
+    main()

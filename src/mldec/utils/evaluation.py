@@ -28,6 +28,8 @@ class WeightedSequenceLoss(nn.Module):
         :param weight: sample weights [B, ]
         :returns: torch.FloatTensor, The loss.
         """
+        print(inputs.shape, targets.shape, weight.shape)
+        print(inputs[:3], targets[:3], weight[:3])
         total_sz = targets.nelement()
         batchsz = weight.shape[0]
         loss = self.crit(inputs.view(total_sz), targets.view(total_sz)).view(batchsz, -1)  # [B, T]
@@ -39,14 +41,20 @@ class WeightedSequenceLoss(nn.Module):
     
 
 def weighted_accuracy(model, X, Y, weights):
-    Y_pred = model(X).int() # get predictions from activations
+    """
+    model - a Wrapper that exposes a `predict` method
+    """
+    Y_pred = model.predict(X).int() # get predictions from activations
     compare = ((Y_pred + Y) % 2).sum(axis=1) == 0
     acc = (compare * weights).sum()
     return acc.item()
 
 
 def weighted_loss(model, X, Y, weights, criterion):
-    Y_pred = model(X)
+    """
+    model - a Wrapper that exposes a `predict` method
+    """
+    Y_pred = model.predict(X)
     res = criterion(Y_pred, Y, weights)
     return res.item()
     

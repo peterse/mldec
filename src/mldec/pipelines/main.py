@@ -31,6 +31,7 @@ def main(config):
 
     if config.get("mode") == "tune":
         # these are the parameterized hyperparameters we want to tune over
+        # They vary by model, so be aware!
         hyper_config = {
             'lr': tune.loguniform(1e-4, 1e-2),
             'hidden_dim': tune.choice([8, 16, 32, 64]),
@@ -51,32 +52,56 @@ def main(config):
         }
         train_model.tune_hyperparameters(hyper_config, hyper_settings, dataset_module, config, dataset_config)
     else:
-        model = initialize.initialize_model(config)
-        train_model.train_model(model, dataset_module, config, dataset_config)
+        # here, ``
+        model_wrapper = initialize.initialize_model(config)
+        train_model.train_model(model_wrapper, dataset_module, config, dataset_config)
 
 if __name__ == "__main__":
-    # mode options: train, verify, tune
-    # mode = "verify"
-    mode = "tune"
+    only_good_examples = True
+    mode = "train" # options: train, tune
     n = 8
     input_dim = n - 1
+
     config = {
-        "model": "ffnn",
-        "input_dim": input_dim,
-        "hidden_dim": 16,
-        "output_dim": n,
-        "n_layers": 3,
+        # Dataset config
+        "n": n,
+        "only_good_examples": only_good_examples, # make the dataset easier: uniform distribution over good examples.
+        "n_train": 1000, # this is how many virtual training samples
+        "dataset_module": "toy_problem",
+        # Training config:
         "max_epochs": 10000,
         "batch_size": 500,
         "learning_rate": 0.003,
-        "patience": 2000,
-        "n": n,
-        "mode": mode,
-        "n_train": 1000,
+        "patience": 2000, # early stopping patience; if val_acc does not increase after this many epochs, stop training
         "lr": 0.01, # scales up with batch size
         "opt": "adam",
-        "sgd_decay_rate": 0.5,
-        "sgd_decay_patience": 100,
-        "dataset_module": "toy_problem",
+        "mode": mode,
+        "device": "cpu",
     }
+
+    MODEL_CHOICE = "encdec"
+    if MODEL_CHOICE == "ffnn":
+        model_config = {
+            "model": "ffnn",
+            "input_dim": input_dim,
+            "hidden_dim": 16,
+            "output_dim": n,
+            "n_layers": 3,
+            "dropout": 0,
+        }
+    elif MODEL_CHOICE == "encdec":
+        config["use_sos_eos"] = True
+        model_config = {
+            "model": "encdec",
+            "input_dim": input_dim,
+            "output_dim": n,
+            "d_model": 16,
+            "nhead": 4,
+            "num_encoder_layers": 2,
+            "num_decoder_layers": 2,
+            "dim_feedforward": 16,
+            "dropout": 0,
+        }
+
+    config.update(model_config)
     main(config)
