@@ -134,20 +134,25 @@ def sample_virtual_XY(probs, m, n, dataset_config):
     return Xb_tensor, Yb_tensor, weightsb, hist
 
 
-def make_good_examples(n, p1, p2):
-    """prepare a dataset of specifically the good examples."""
+def uniform_over_good_examples(n, dataset_config):
+    """prepare a dataset of specifically the good examples.
+    
+    Ties are broken arbitrarily.
+    """
     X_train, Y_train = create_dataset(n)
-    probs = noise_model(Y_train, n, p1, p2)
+    probs = noise_model(Y_train, n, dataset_config)
     good_examples = {}
-    for x, y, w in zip(X_train, Y_train, probs):
-        if tuple(x) in good_examples:
-            if w > good_examples[tuple(x)][1]:
-                good_examples[tuple(x)] = (y, w)
-        else:
-            good_examples[tuple(x)] = (y, w)
+    as_tuple = lambda x: tuple([int(i) for i in x]) # torch tensors should not be hashed.
+    for j, (x, y, w) in enumerate(zip(X_train, Y_train, probs)):
+        if as_tuple(x) in good_examples:
+            if w > good_examples[as_tuple(x)][1]:
+                good_examples[as_tuple(x)] = (j, w)
 
-    Y_train = np.array([v[0] for v in good_examples.values()])
-    X_train = np.array([k for k in good_examples.keys()])
-    probs = np.array([v[1] for v in good_examples.values()])
+        else:
+            good_examples[as_tuple(x)] = (j, w)
+    indices_to_keep = [v[0] for v in good_examples.values()]
+    probs = np.zeros_like(probs)
+    probs[indices_to_keep] = 1
     probs = probs / probs.sum()
+    probs = torch.tensor(probs, dtype=torch.float32)
     return X_train, Y_train, probs
