@@ -76,6 +76,7 @@ def generate_square_subsequent_mask(sz, device):
 	mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
 	return mask
 
+
 class BinarySeq2Seq(nn.Module):
 	"""Wrapper class for a bitstring-to-bitstring (seq2seq) transformer, with fixed-length data.
 
@@ -84,7 +85,7 @@ class BinarySeq2Seq(nn.Module):
 		input_dim: (int) number of bits in the input sequence
 		output_dim: (int) number of bits in the output sequence
 	"""
-	def __init__(self, input_dim, output_dim, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward, dropout=0, device=None):
+	def __init__(self, input_dim, output_dim, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward, dropout=0, device=None, sos_token=0):
 		super(BinarySeq2Seq, self).__init__()
 		self.input_dim = input_dim
 		self.output_dim = output_dim
@@ -95,9 +96,13 @@ class BinarySeq2Seq(nn.Module):
 		self.dim_feedforward = dim_feedforward
 		self.dropout = dropout
 		self.device = device
+		self.sos_token = sos_token
 
+		self.cached_memory = None
 		self._initialize_model()
 
+		# create the mask manually, accounting for sos/eos concats, minus one for the trianing scheme
+		self.tgt_mask = generate_square_subsequent_mask(output_dim + 1, device='cpu')
 
 	def _initialize_model(self):
 		"""Initializes the model from the configuration"""
@@ -109,8 +114,8 @@ class BinarySeq2Seq(nn.Module):
 			dim_feedforward=self.dim_feedforward,
 			dropout=self.dropout,
 			norm_first=False,
-			src_vocab_size=4,
-			tgt_vocab_size=4,
+			src_vocab_size=2,
+			tgt_vocab_size=2,
 			positional_encoding=True
 			).to(self.device)
 		# `forward` signature: (src, trg, src_mask, tgt_mask, **kwargs)
@@ -120,33 +125,46 @@ class BinarySeq2Seq(nn.Module):
 		optimizer.zero_grad()
 		# the prediction scheme is to predict the next bit in the sequence
 		# at every place. Thanks Andrej Karpathy.
-		tgt_input = Y[:, :-1]
-		tgt_out = Y[:, 1:]
-		logits = self.model(X, tgt_input)
-		print("PING!")
-		print(logits.shape, tgt_out.shape)
-		loss = criterion(logits.reshape(-1, logits.size(-1)), tgt_out.reshape(-1), weights)
+		tgt_input = Y[:, :-1] # shape [batch, output_dim - 1]
+		tgt_out = Y[:, 1:] # shape [batch, output_dim - 1]
+		logits = self.model(X, tgt_input, tgt_mask=self.tgt_mask) # [B, T, C]
+		# We are calling the criterion on the output logits vs. a _slice_
+		loss = criterion(logits, tgt_out, weights)
 		loss.backward()
 		optimizer.step()     
 		return loss
 	
-	def predict(self, X, sos_token=2):
+	def predict(self, X, use_cached_memory=False, return_activations=False):
 		"""Predicts the output of the model given a source sequence.
 		WARNING: This will output the entire sequence, including SOS and EOS tokens.
-		"""
-		max_len = self.input_dim + 2 # +2 for SOS and EOS
 
-		# column-wise recursion
-		memory = self.model.encode(X).to(self.device) # now this is phi(x), shape (1, 2*N_BITS + 2, emb_dim)
-		Y_pred = torch.ones(X.shape[0], 1).fill_(sos_token).type(torch.long).to(self.device)
-		for i in range(max_len - 1): # -1 since we start with SOS
-			out = self.model.decode(tgt=Y_pred, memory=memory) # (1, tgt_seq_len, emb_dim)
-			prob = self.model.generator(out[:, -1])
-			_, next_bits = torch.max(prob, dim=1)
-			Y_pred = torch.cat([Y_pred, next_bits.reshape(-1, 1)], dim=1)
+		`is_memory`: You can provide the encoded X as memory to save time.
+		Returns the predicted sequence and the memory from the encoder. You can use the 
+		cached memory to evaluate accuracy, e.g.
+		"""
+		max_len = self.output_dim + 2 # +2 for SOS and EOS
+
+		# X = self.model.encode(X).to(self.device) # now this is phi(x), shape [B, output_dim , d_model]
+		# column-wise recursion: Note that this takes about T times longer than the encoder step
+		# TODO: There might be a caching technique to make this faster
+		Y_pred = torch.ones(X.shape[0], 1).fill_(self.sos_token).type(torch.float).to(self.device)
+		acts_out = torch.ones(X.shape[0], 1).fill_(-100).type(torch.float).to(self.device)
+
+		for _ in range(max_len - 1): # -1 since we start with SOS
+			logits = self.model(X, Y_pred) # [B, i]
+			last_logit = logits[:, -1] 
+			next_bit = (last_logit >= 0).float()
+			# next_bit = torch.sigmoid(last_logit >= 0).float()
+			Y_pred = torch.cat([Y_pred, next_bit.view(-1, 1)], dim=1)
+			# out = self.model.decode(tgt=Y_pred, memory=X) # [B, output_dim + 2, d_model]
+			# prob = self.model.generator(out[:, -1]) # [B, C] with C=num_tokens
+			# next_acts = torch.matmul(prob, torch.tensor([-1, 1], dtype=prob.dtype)) # [B]
+			# next_bits = (next_acts > 0).float()
+
+			# Y_pred = torch.cat([Y_pred, next_bits.view(-1, 1)], dim=1)
+
 		return Y_pred
 	
-
 
 
 	# def evaluator(self, source, targets, weights=None):
@@ -187,13 +205,22 @@ class EncoderDecoderTransformer(nn.Module):
 									   norm_first=norm_first,                                       
 									   bias=True,
 									   batch_first=True) # (batch, seq_len, d_model)
+		if tgt_vocab_size != 2:
+			raise ValueError("Only binary output supported.")
 		self.src_tok_emb = TokenEmbedding(src_vocab_size, d_model)
 		self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, d_model)
 		self.positional_encoding = PositionalEncoding(d_model, dropout=dropout, disable=(not positional_encoding))
 		# Final layer for output decoder
-		self.generator = nn.Linear(d_model, tgt_vocab_size)
+		self.generator = nn.Linear(d_model, tgt_vocab_size) # [B, T, C]
+		self.init_output_layer()
 
-	def forward(self, src, trg, src_mask=None, tgt_mask=None, src_padding_mask=None, tgt_padding_mask=None, memory_key_padding_mask=None):
+	def init_output_layer(self):
+		# Initialize weights to bias our output
+		init_val = -0.1
+		nn.init.constant_(self.generator.weight, init_val)
+		nn.init.constant_(self.generator.bias, init_val)
+
+	def forward(self, src, trg, src_mask=None, tgt_mask=None, src_padding_mask=None, tgt_padding_mask=None, memory_key_padding_mask=None, verbose=False):
 		"""
 		Let S be the source seq length, T the target seq length, N the batch size, E the embedding dimension.
 
@@ -207,17 +234,17 @@ class EncoderDecoderTransformer(nn.Module):
 			memory_key_padding_mask: See above
 		
 		Returns:
-			Tensor: (N, T, num_tokens) logits for the target sequence
+			Tensor: (N, T) scalars that will sigmoid into binary values.
 		"""
 		src_emb = self.positional_encoding(self.src_tok_emb(src))
 		tgt_emb = self.positional_encoding(self.tgt_tok_emb(trg))
 		outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
-								src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
-		logits = self.generator(outs)
-		# Compute loss
-		# Forward is only called during training/validation, so this is fine
-		B, T, C = logits.shape
-		logits = logits.view(B*T, C)
+								src_padding_mask, tgt_padding_mask, memory_key_padding_mask) # [B, T, d_model]
+		logits = self.generator(outs) # [B, T, C] with C=num_tokens
+		# Trick for just binary sequences with no unique SOS, EOS: 
+		# Just collapse the final dimension into C[1] - C[0]. Sigmoid 
+		# will take care of the rest later.
+		logits = torch.matmul(logits, torch.tensor([-1, 1], dtype=logits.dtype)) #[B, T]
 		return logits
 
 	def encode(self, src, src_mask=None):
@@ -227,3 +254,4 @@ class EncoderDecoderTransformer(nn.Module):
 	def decode(self, tgt, memory, tgt_mask=None):
 		tgt_pos_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
 		return self.transformer.decoder(tgt_pos_emb, memory, tgt_mask)
+	

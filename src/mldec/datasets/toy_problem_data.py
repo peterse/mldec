@@ -29,15 +29,14 @@ def create_dataset(n):
     return Xtensor, Ytensor
 
 
-def create_dataset_training(n, dataset_config, use_sos_eos=False):
+def create_dataset_training(n, dataset_config, sos_eos=None):
     """
-    sos_eos: This will append start-of-sequence and end-of-sequence tokens to just the targets Y.
+    sos_eos: Tuple (sos, eos) to append to the targets. If None, no tokens are appended.
     """
     X, Y = create_dataset(n)
     weights = noise_model(Y, n, dataset_config)
-    if use_sos_eos:
-        sos = 2
-        eos = 3
+    if sos_eos:
+        sos, eos = sos_eos
         Y = torch.cat([sos*torch.ones((Y.shape[0], 1)), Y, eos*torch.ones((Y.shape[0], 1))], axis=1)
     return X, Y, weights
 
@@ -114,7 +113,7 @@ def sample_histogram(probs, m):
         hist[s] += 1
     return hist / m
 
-def sample_virtual_XY(probs, m, n, dataset_config, use_sos_eos=False):
+def sample_virtual_XY(probs, m, n, dataset_config, sos_eos=None):
     """Sample virtual dataset.
     
     The virtual dataset is a tuple (X, Y, weights).
@@ -124,7 +123,7 @@ def sample_virtual_XY(probs, m, n, dataset_config, use_sos_eos=False):
         m: number of samples to draw
         n: number of bits
         config: Should contain p1, p2, and the parity check matrix.
-        sos_eos: This will append start-of-sequence and end-of-sequence tokens to just the targets Y.
+        sos_eos: Tuple (sos, eos) to append to the targets. If None, no tokens are appended.
     Returns:
         Y is (N, n) array, where N is the number of unique samples and n is the number of bits.
             Each row of Y is a unique bitstring that appeared in sampling.
@@ -144,16 +143,15 @@ def sample_virtual_XY(probs, m, n, dataset_config, use_sos_eos=False):
     weights = weights / weights.sum()
     Xb_tensor = torch.tensor(X, dtype=torch.float32)
     Yb_tensor = torch.tensor(Y, dtype=torch.float32)
-    if use_sos_eos:
-        sos = 2
-        eos = 3
+    if sos_eos:
+        sos, eos = sos_eos
         Yb_tensor = torch.cat([sos*torch.ones((Yb_tensor.shape[0], 1)), Yb_tensor, eos*torch.ones((Yb_tensor.shape[0], 1))], axis=1)
     weightsb = torch.tensor(weights, dtype=torch.float32)
 
     return Xb_tensor, Yb_tensor, weightsb, hist
 
 
-def uniform_over_good_examples(n, dataset_config, use_sos_eos=False):
+def uniform_over_good_examples(n, dataset_config, sos_eos=None):
     """prepare a dataset of specifically the good examples.
     
     Ties are broken arbitrarily.
@@ -174,8 +172,7 @@ def uniform_over_good_examples(n, dataset_config, use_sos_eos=False):
     probs[indices_to_keep] = 1
     probs = probs / probs.sum()
     probs = torch.tensor(probs, dtype=torch.float32)
-    if use_sos_eos:
-        sos = 2
-        eos = 3
+    if sos_eos:
+        sos, eos = sos_eos
         Y_train = torch.cat([sos*torch.ones((Y_train.shape[0], 1)), Y_train, eos*torch.ones((Y_train.shape[0], 1))], axis=1)
     return X_train, Y_train, probs

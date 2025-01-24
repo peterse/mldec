@@ -59,7 +59,7 @@ def main(config):
 if __name__ == "__main__":
     only_good_examples = True
     mode = "train" # options: train, tune
-    n = 8
+    n = 4
     input_dim = n - 1
 
     config = {
@@ -71,9 +71,8 @@ if __name__ == "__main__":
         # Training config:
         "max_epochs": 10000,
         "batch_size": 500,
-        "learning_rate": 0.003,
         "patience": 2000, # early stopping patience; if val_acc does not increase after this many epochs, stop training
-        "lr": 0.01, # scales up with batch size
+        "lr": 0.003, # scales up with batch size
         "opt": "adam",
         "mode": mode,
         "device": "cpu",
@@ -90,7 +89,7 @@ if __name__ == "__main__":
             "dropout": 0,
         }
     elif MODEL_CHOICE == "encdec":
-        config["use_sos_eos"] = True
+        config["sos_eos"] = (0, 0)
         model_config = {
             "model": "encdec",
             "input_dim": input_dim,
@@ -99,8 +98,8 @@ if __name__ == "__main__":
             "nhead": 4,
             "num_encoder_layers": 2,
             "num_decoder_layers": 2,
-            "dim_feedforward": 16,
-            "dropout": 0,
+            "dim_feedforward": 8,
+            "dropout": 0.05,
         }
 
     config.update(model_config)

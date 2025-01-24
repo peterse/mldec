@@ -21,8 +21,15 @@ def initialize_model(config):
         dim_feedforward = config.get("dim_feedforward")
         dropout = config.get("dropout", 0)
         device = config.get("device")
-        model = encdec.BinarySeq2Seq(input_dim, output_dim, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward, dropout, device=device)
+        sos, eos = config.get("sos_eos")
+        model = encdec.BinarySeq2Seq(input_dim, output_dim, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward, dropout, device=device, sos_token=sos)
     else:
         raise ValueError("Unknown model type")
     
     return model
+
+
+def count_parameters(model):
+	tot = sum(p.numel() for p in model.parameters())
+	trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+	return tot, trainable

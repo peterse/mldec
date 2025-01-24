@@ -64,7 +64,7 @@ class FFNNmodel(nn.Module):
         self.first =  HiddenLayer(input_dim, hidden_dim[0], dropout)
         self.layers = nn.ModuleList([HiddenLayer(hidden_dim[i], hidden_dim[i+1], dropout) for i in range(N_layers-1)])
         self.output = nn.Linear(hidden_dim[-1], output_dim)
-        self.act_output = nn.Sigmoid()
+        # self.act_output = nn.Sigmoid() # assume BCEWithLogitsLoss
         # Custom initialization for the output layer
         self.init_output_layer()
 
@@ -78,5 +78,5 @@ class FFNNmodel(nn.Module):
         x = self.first(x)
         for layer in self.layers:
             x = layer(x)
-        x = self.output(x)
+        return self.output(x)
         return self.act_output(x)

@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 
+import time
+
 import ray
 from ray import tune
 from ray.tune import CLIReporter
@@ -15,21 +17,23 @@ def train_model(model_wrapper, dataset_module, config, dataset_config):
 
     max_epochs = config['max_epochs']
     batch_size = config['batch_size']
-    learning_rate = config['learning_rate']
     patience = config['patience']
     n = config['n']
     mode = config['mode']
     n_train = config['n_train']
     lr = config['lr']
-    use_sos_eos = config.get('use_sos_eos', False)
+    sos_eos = config.get('sos_eos', False)
 
     history = []    
-    criterion = evaluation.WeightedSequenceLoss(torch.nn.BCELoss)
+    criterion = evaluation.WeightedSequenceLoss(torch.nn.BCEWithLogitsLoss)
 
     opt = config.get('opt')
     optimizer, scheduler = training.initialize_optimizer(config, model_wrapper.model.parameters())
     early_stopping = training.EarlyStopping(patience=patience) 
     max_val_acc = -1
+
+    tot_params, trainable_params = initialize.count_parameters(model_wrapper.model)
+    print(f"Training model {config.get('model')} with {tot_params} total parameters, {trainable_params} trainable.")
 
     # Training loop
     for epoch in range(max_epochs):
@@ -41,15 +45,15 @@ def train_model(model_wrapper, dataset_module, config, dataset_config):
         n_batches = n_train // batch_size
         downsampled_weights = np.zeros(2**n) # this will accumulate a histogram of the training set over all batches
         if config.get('only_good_examples'):
-            X, Y, weights = dataset_module.uniform_over_good_examples(n, dataset_config, use_sos_eos=use_sos_eos)
+            X, Y, weights = dataset_module.uniform_over_good_examples(n, dataset_config, sos_eos=sos_eos)
         else:
-            X, Y, weights = dataset_module.create_dataset_training(n, dataset_config, use_sos_eos=use_sos_eos)
+            X, Y, weights = dataset_module.create_dataset_training(n, dataset_config, sos_eos=sos_eos)
 
-        weights_tensor = torch.tensor(weights, dtype=torch.float32)  # true distribution of bitstrings  
+        weights = torch.tensor(weights, dtype=torch.float32)  # true distribution of bitstrings  
         train_loss = 0        
 
         for _ in range(n_batches):
-            Xb, Yb, weightsb, histb = dataset_module.sample_virtual_XY(weights_tensor.numpy(), batch_size, n, dataset_config)
+            Xb, Yb, weightsb, histb = dataset_module.sample_virtual_XY(weights.numpy(), batch_size, n, dataset_config, sos_eos=sos_eos)
             downsampled_weights += histb
             # Do gradient descent on a virtual batch of data
             loss = model_wrapper.training_step(Xb, Yb, weightsb, optimizer, criterion)
@@ -58,17 +62,41 @@ def train_model(model_wrapper, dataset_module, config, dataset_config):
         train_loss = train_loss / n_batches
         downsampled_weights /= n_batches
 
-        # Virtual Validation
-        downsampled_weights_tensor = torch.tensor(downsampled_weights, dtype=torch.float32)
-        model_wrapper.model.eval()        
-        val_loss = evaluation.weighted_loss(model_wrapper, X, Y, weights_tensor, criterion)        
-        val_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, weights_tensor)
-        train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_weights_tensor) # training accuracy is evaluated on the same data from this epoch.
+        # if config.get('opt') == 'sgd':
+        #     scheduler.step(val_acc)
 
-        if config.get('opt') == 'sgd':
-            scheduler.step(val_acc)
+        # We only do accuracy and loss checks every 10 epochs
+        if (epoch % 100) == 0:
+            # Virtual Validation: Happens every 10 epochs; on whatever dataset we get.
+            downsampled_weights_tensor = torch.tensor(downsampled_weights, dtype=torch.float32)
+            model_wrapper.model.eval()        
+            # Heads up: For autoregressive models, train_loss tracks something very different than val_loss!
+            # val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, weights, criterion)
+            if config.get('model') == 'encdec':
+                val_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, weights)
+                val_preds = model_wrapper.model(X, Y[:,:-1], tgt_mask=model_wrapper.tgt_mask)
+                val_loss = criterion(val_preds, Y[:, 1:], weights).item()
+            else:
+                raise(NotImplementedError)
+                val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, weights, criterion)
+            train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_weights_tensor) # training accuracy is evaluated on the same data from this epoch.
 
-        if (epoch % 10) == 0:
+            tgt_input = Y[:, :-1] # shape [batch, output_len - 1]
+            tgt_out = Y[:, 1:] # shape [batch, output_len - 1]
+            model_out = model_wrapper.model(X, tgt_input)
+            pred_out = (model_out >= 0).long()
+            print("training comparison")
+            for y, ypred, w in zip(tgt_out, pred_out, downsampled_weights):
+                if w > 0:
+                    print(y, ypred)
+            print()
+
+            print("prediction comparison:")
+            Y_pred = model_wrapper.predict(X)
+            for y, ypred, w in zip(Y, Y_pred, weights):
+                if w > 0:
+                    print(y, ypred)
+
             # Saving and printing
             save_str = ""
             if val_acc > max_val_acc:
