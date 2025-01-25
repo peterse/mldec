@@ -212,6 +212,7 @@ class EncoderDecoderTransformer(nn.Module):
 		self.positional_encoding = PositionalEncoding(d_model, dropout=dropout, disable=(not positional_encoding))
 		# Final layer for output decoder
 		self.generator = nn.Linear(d_model, tgt_vocab_size) # [B, T, C]
+		self.register_buffer("collapse_weight", torch.tensor([-1, 1], dtype=torch.float))
 		self.init_output_layer()
 
 	def init_output_layer(self):
@@ -244,7 +245,7 @@ class EncoderDecoderTransformer(nn.Module):
 		# Trick for just binary sequences with no unique SOS, EOS: 
 		# Just collapse the final dimension into C[1] - C[0]. Sigmoid 
 		# will take care of the rest later.
-		logits = torch.matmul(logits, torch.tensor([-1, 1], dtype=logits.dtype)) #[B, T]
+		logits = torch.matmul(logits, self.collapse_weight) #[B, T]
 		return logits
 
 	def encode(self, src, src_mask=None):
