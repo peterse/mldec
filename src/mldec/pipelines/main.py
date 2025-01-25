@@ -59,8 +59,8 @@ def main(config):
 
 if __name__ == "__main__":
     only_good_examples = True
-    mode = "tune" # options: train, tune
-    n = 4
+    mode = "train" # options: train, tune
+    n = 8
     input_dim = n - 1
 
     # Some notes:
@@ -83,30 +83,35 @@ if __name__ == "__main__":
         "lr": 0.003, # !OVERWRITE
         "opt": "adam",
         "mode": mode,
+        # fixed model config
+        "input_dim": input_dim,
+        "output_dim": n,
+        "dropout": 0.05, # !OVERWRITE
     }
 
-    MODEL_CHOICE = "encdec"
+    MODEL_CHOICE = "cnn"
     if MODEL_CHOICE == "ffnn":
         model_config = {
             "model": "ffnn",
-            "input_dim": input_dim, 
             "hidden_dim": 16, # !OVERWRITE
-            "output_dim": n,
             "n_layers": 3, # !OVERWRITE
             "dropout": 0, # !OVERWRITE
+        }
+    elif MODEL_CHOICE == "cnn":
+        model_config = {
+            "model": "cnn",
+            "conv_channels": 4, # !OVERWRITE
+            "n_layers": 3, # !OVERWRITE
         }
     elif MODEL_CHOICE == "encdec":
         config["sos_eos"] = (0, 0)
         model_config = {
             "model": "encdec",
-            "input_dim": input_dim,
-            "output_dim": n,
             "d_model": 16, # !OVERWRITE
             "nhead": 4, # !OVERWRITE
             "num_encoder_layers": 2, # !OVERWRITE
             "num_decoder_layers": 2, # !OVERWRITE
             "dim_feedforward": 8, # !OVERWRITE
-            "dropout": 0.05, # !OVERWRITE
         }
 
     config.update(model_config)

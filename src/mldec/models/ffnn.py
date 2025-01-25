@@ -52,7 +52,8 @@ class FFNN(nn.Module):
 
     def predict(self, X):
         """Predict the output of the model."""
-        return self.model(X)
+        activations = self.model(X)
+        return (activations >= 0).float()
 
 
 class FFNNmodel(nn.Module):

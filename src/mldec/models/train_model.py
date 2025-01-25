@@ -84,11 +84,10 @@ def train_model(model_wrapper, dataset_module, config, dataset_config):
                 val_preds = model_wrapper.model(X, Y[:,:-1], tgt_mask=model_wrapper.tgt_mask)
                 val_loss = criterion(val_preds, Y[:, 1:], weights).item()
             else:
-                raise(NotImplementedError)
                 val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, weights, criterion)
             train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_weights_tensor) # training accuracy is evaluated on the same data from this epoch.
 
-            # DEBUG
+            # DEBUG for encdec
             # tgt_input = Y[:, :-1] # shape [batch, output_len - 1]
             # tgt_out = Y[:, 1:] # shape [batch, output_len - 1]
             # model_out = model_wrapper.model(X, tgt_input)

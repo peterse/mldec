@@ -68,7 +68,7 @@ def weighted_accuracy_and_loss(model, X, Y, weights, criterion):
     """
     model - a Wrapper that exposes a `predict` method
     """
-    Y_acts = model.predict(X, return_activations=True)
+    Y_acts = model.predict(X)
     Y_pred = (Y_acts > 0).int()
     loss = criterion(Y_acts, Y, weights)
     compare = ((Y_pred + Y) % 2).sum(axis=1) == 0
