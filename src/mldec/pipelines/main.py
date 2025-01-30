@@ -5,8 +5,18 @@ import torch
 from ray import tune
 
 abs_path = os.path.dirname(os.path.abspath(__file__))
-tune_directory = os.path.join(abs_path, "ray_results")
-tune_path = os.path.join(tune_directory, "tune_results.csv")
+
+
+def make_tune_directory(config):
+    tune_directory = os.path.join(abs_path, "tune_results")
+    model = config.get("model")
+    dataset_module = config.get("dataset_module")
+    only_good_examples = config.get("only_good_examples")
+    model_subdir = f"{model}_{dataset_module}_good{only_good_examples}"
+    tune_directory = os.path.join(tune_directory, model_subdir)
+    if not os.path.exists(tune_directory):
+        os.makedirs(tune_directory)
+    return tune_directory
 
 def main(config):
 
@@ -29,8 +39,13 @@ def main(config):
     else:
         raise ValueError("Unknown dataset module")
     
+        
+    
 
     if config.get("mode") == "tune":
+
+        tune_directory = make_tune_directory(config)
+        tune_path = os.path.join(tune_directory, "tune_results.csv")
         # these are the parameterized hyperparameters we want to tune over
         # They vary by model, so be aware!
         hyper_config = {
@@ -39,8 +54,8 @@ def main(config):
             'n_layers': tune.choice([1, 2, 3, 4]),
             "max_epochs": 300, # this is the max epochs any trial is allowed to run
         }
-        # these specify how tune will work
         
+        # these specify how tune will work
         hyper_settings = {
             "total_cpus": 1,
             "total_gpus": 0,
