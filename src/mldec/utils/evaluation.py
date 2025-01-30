@@ -30,7 +30,12 @@ class WeightedSequenceLoss(nn.Module):
         """
         total_sz = targets.nelement()
         batchsz = weight.shape[0]
-        loss = self.crit(inputs.view(total_sz), targets.view(total_sz)).view(batchsz, -1)  # [B, T]
+        # FIXME: .view doesn't work but .reshape does, this bothers me a bit?
+        # https://github.com/cezannec/capsule_net_pytorch/issues/4
+        # claim: reshape might copy the tensor :(
+        # The problem: `targets` is a slice of the original Y array with shape [B, T-1], but 
+        # `targets` keeps the stride of (T, 1) from before. `view` doesn't like this
+        loss = self.crit(inputs.view(total_sz), targets.reshape(total_sz)).view(batchsz, -1)  # [B, T]
         loss = torch.dot(self._reduce(loss), weight.type_as(loss))
         return loss
 
@@ -39,14 +44,34 @@ class WeightedSequenceLoss(nn.Module):
     
 
 def weighted_accuracy(model, X, Y, weights):
-    Y_pred = model(X).int() # get predictions from activations
+    """
+    model - a Wrapper that exposes a `predict` method
+    """
+    Y_pred = model.predict(X).int() # get predictions from activations
     compare = ((Y_pred + Y) % 2).sum(axis=1) == 0
     acc = (compare * weights).sum()
+    print("validation_predictions:")
+    for (y, ypred, weight) in zip(Y, Y_pred, weights):
+        print(y, ypred, weight)
     return acc.item()
 
 
 def weighted_loss(model, X, Y, weights, criterion):
-    Y_pred = model(X)
+    """
+    model - a Wrapper that exposes a `predict` method
+    """
+    Y_pred = model.predict(X)
     res = criterion(Y_pred, Y, weights)
     return res.item()
+
+def weighted_accuracy_and_loss(model, X, Y, weights, criterion):
+    """
+    model - a Wrapper that exposes a `predict` method
+    """
+    Y_acts = model.predict(X)
+    Y_pred = (Y_acts > 0).int()
+    loss = criterion(Y_acts, Y, weights)
+    compare = ((Y_pred + Y) % 2).sum(axis=1) == 0
+    acc = (compare * weights).sum()
+    return acc.item(), loss.item()
     
