@@ -39,13 +39,13 @@ def main(config):
         # these specify how tune will work
         
         hyper_settings = {
-            "total_cpus": 20,
+            "total_cpus": 10,
             "total_gpus": 0,
             "cpus_per_worker": 1, #i.e. cpus per trial
             "gpus_per_worker": 0,
-            "max_concurrent_trials": 20,
-            "max_epochs": 10000, # this is the max epochs any trial is allowed to run
-            "num_samples": 500, # this is equal to total trials if no grid search
+            "max_concurrent_trials": 10,
+            "max_epochs": 20000, # this is the max epochs any trial is allowed to run
+            "num_samples": 1, # this is equal to total trials if no grid search
             "tune_directory": tune_directory,
             "tune_path": tune_path,
         }
