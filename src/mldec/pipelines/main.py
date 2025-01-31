@@ -79,7 +79,6 @@ if __name__ == "__main__":
     # SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
     config = {
         "device": "cpu", # !OVERWRITE
-        "log_path": "log.txt",
         # Dataset config
         "n": n,
         "only_good_examples": only_good_examples, 
