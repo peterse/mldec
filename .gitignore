@@ -4,4 +4,5 @@ __pycache__/
 theory/
 *.pt 
 src/mldec/pipelines/ray_results
+src/mldec/pipelines/tune_results
 src/mldec/pipelines/temp

@@ -1,8 +1,0 @@
-01-31 15 | tune_model.py : __init__() ::	 Thread 2025-01-31-15-06-28-239161 writing to C:\Users\peter\Desktop\projects\quantum_error_correction\decoding-nonpauli-errors\src\mldec\pipelines\tune_results\cnn_toy_problem_goodTrue\thread_2025-01-31-15-06-28-239161
-01-31 15 | tune_model.py : log_print() ::	 initializing multiprocessing on: cpu
-01-31 15 | tune_model.py : log_print() ::	 Process ID: 12308, Process Name: SpawnPoolWorker-1
-01-31 15 | tune_model.py : log_print() ::	 Training model cnn with 160 total parameters, 160 trainable.
-01-31 15 | tune_model.py : log_print() ::	 Epoch 1/300 | Train Loss: 6.7777E-01 | Val Loss: 6.9315E-01 | Train Acc: 0.0080 | Val Acc: 0.0078
-01-31 15 | tune_model.py : log_print() ::	 Epoch 101/300 | Train Loss: 6.2493E-01 | Val Loss: 6.8997E-01 | Train Acc: 0.0110 | Val Acc: 0.0078
-01-31 15 | tune_model.py : log_print() ::	 Epoch 201/300 | Train Loss: 6.2005E-01 | Val Loss: 7.0302E-01 | Train Acc: 0.0080 | Val Acc: 0.0078
-01-31 15 | tune_model.py : log_print() ::	 Max epochs reached
