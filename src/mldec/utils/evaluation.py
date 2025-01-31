@@ -50,9 +50,9 @@ def weighted_accuracy(model, X, Y, weights):
     Y_pred = model.predict(X).int() # get predictions from activations
     compare = ((Y_pred + Y) % 2).sum(axis=1) == 0
     acc = (compare * weights).sum()
-    print("validation_predictions:")
-    for (y, ypred, weight) in zip(Y, Y_pred, weights):
-        print(y, ypred, weight)
+    # print("validation_predictions:")
+    # for (y, ypred, weight) in zip(Y, Y_pred, weights):
+    #     print(y, ypred, weight)
     return acc.item()
 
 

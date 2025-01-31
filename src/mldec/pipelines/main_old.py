@@ -1,8 +1,8 @@
 import os
 from mldec.datasets import toy_problem_data
-from mldec.models import initialize, train_model, tune_model
+from mldec.models import initialize, train_model
 import torch
-import numpy as np
+from ray import tune
 
 abs_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -27,8 +27,8 @@ def main(config):
     # reweight a loss function according to a sample from the 
     # underlying data distribution. This virtual sampling is done
     # just-in-time.
-    dataset_module = config.get("dataset_module")
-    if dataset_module == "toy_problem":
+    if config.get("dataset_module") == "toy_problem":
+        dataset_module = toy_problem_data
         n = config['n']
         dataset_config = {
             'p1': 0.1,
@@ -40,33 +40,41 @@ def main(config):
         raise ValueError("Unknown dataset module")
     
         
+    
+
     if config.get("mode") == "tune":
 
         tune_directory = make_tune_directory(config)
-        # tune_path = os.path.join(tune_directory, "tune_results.csv")
+        tune_path = os.path.join(tune_directory, "tune_results.csv")
         # these are the parameterized hyperparameters we want to tune over
         # They vary by model, so be aware!
         hyper_config = {
-            'lr': np.logspace(-4,-2, num=10, base=10.0),
-            'hidden_dim': np.array([8, 16, 32, 64]),
-            'n_layers': np.array([1, 2, 3, 4]),
+            'lr': tune.loguniform(1e-4, 1e-2),
+            'hidden_dim': tune.choice([8, 16, 32, 64]),
+            'n_layers': tune.choice([1, 2, 3, 4]),
+            "max_epochs": 300, # this is the max epochs any trial is allowed to run
         }
         
         # these specify how tune will work
         hyper_settings = {
-            "total_cpus": 2,
+            "total_cpus": 1,
             "total_gpus": 0,
+            "cpus_per_worker": 1, #i.e. cpus per trial
+            "gpus_per_worker": 0,
+            "max_concurrent_trials": 1,
             "num_samples": 2, # this is equal to total trials if no grid search
             "tune_directory": tune_directory,
+            "tune_path": tune_path,
         }
-        tune_model.tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config)
+        train_model.tune_hyperparameters(hyper_config, hyper_settings, dataset_module, config, dataset_config)
     else:
+        # here, ``
         model_wrapper = initialize.initialize_model(config)
         train_model.train_model(model_wrapper, dataset_module, config, dataset_config)
 
 if __name__ == "__main__":
     only_good_examples = True
-    mode = "tune" # options: train, tune
+    mode = "train" # options: train, tune
     n = 8
     input_dim = n - 1
 
@@ -76,17 +84,15 @@ if __name__ == "__main__":
     # n_train = virtual training samples, i.e. noise in a histogram of the error distribution
     # !OVERWRITE indiicates a hyperparam that may be overwritten by raytune `hyper_config` or raytune internals
     # only_good_examples = uniform distribution over good examples
-    # SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
     config = {
-        "device": "cpu", # !OVERWRITE
-        "log_path": "log.txt",
+        "device": torch.device("cpu"), # !OVERWRITE
         # Dataset config
         "n": n,
         "only_good_examples": only_good_examples, 
         "n_train": 1000,
         "dataset_module": "toy_problem",
         # Training config: 
-        "max_epochs": 300,
+        "max_epochs": 10000, # !OVERWRITE
         "batch_size": 500,
         "patience": 2000,  
         "lr": 0.003, # !OVERWRITE

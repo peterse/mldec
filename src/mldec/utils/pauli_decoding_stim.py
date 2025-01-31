@@ -1,5 +1,5 @@
 import numpy as np
-import numba
+# import numba
 import itertools
 import stim
 from itertools import chain, combinations
@@ -54,7 +54,7 @@ def pauli_vector_channel(p, pauli, n):
     return p[0]**(n-sx-sy-sz) * p[1]**sx * p[2]**sy * p[3]**sz
 
 
-@numba.jit(nopython=True, parallel=False) #parallel speeds up computation only over very large matrices
+# @numba.jit(nopython=True, parallel=False) #parallel speeds up computation only over very large matrices
 # M is a mxn matrix binary matrix 
 # all elements in M should be uint8 
 # ripped from https://gist.github.com/popcornell/bc29d1b7ba37d824335ab7b6280f7fec
