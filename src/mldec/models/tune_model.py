@@ -5,20 +5,20 @@ import datetime
 import json
 import time
 import multiprocessing as mp
+import pandas as pd
 
 from mldec.models import initialize, train_model
 from mldec.pipelines import loggingx
 
-def initialize_and_train_model(hyper_config, config, dataset_module, dataset_config, manager=None):
-    device = torch.device("cpu")
-    manager.log_print(f"initializing multiprocessing on: {device}")
-    manager.log_print(f"Process ID: {os.getpid()}, Process Name: {mp.current_process().name}")
-    config["device"] = "cpu"
-    # merge the hyperparameter config into the ordinary config, giving priority to the hyperparameter config
-    for k, v in hyper_config.items():
-        config[k] = v
-    model = initialize.initialize_model(config)
-    train_model.train_model(model, dataset_module, config, dataset_config, manager=manager)
+
+def make_tune_results_path(path):
+    return os.path.join(path, "tune_results.csv")
+
+def hyper_config_path(path):
+    return os.path.join(path, f"hyper_config.json")
+
+def get_header():
+    return "epoch,train_loss,train_acc,val_loss,val_acc"
 
 
 class ThreadManager:
@@ -34,7 +34,7 @@ class ThreadManager:
     def __init__(self, thread_id, tune_path, logger_name):
         self.thread_id = thread_id
         self.tune_path = tune_path
-        self.tune_results_path = os.path.join(self.tune_path, f"tune_results.csv")
+        self.tune_results_path = make_tune_results_path(self.tune_path)
         self.log_path = os.path.join(self.tune_path, f"log.txt")
 
         # initialize logging
@@ -44,7 +44,7 @@ class ThreadManager:
 
         self.logger.info(f"Thread {thread_id} writing to {self.tune_path}")
         with open(self.tune_results_path, "w") as f:
-            f.write("epoch,train_loss,train_acc,val_loss,val_acc\n")
+            f.write(get_header() + "\n")
 
     def report(self, epoch_results):
         with open(self.tune_results_path, "a") as f:
@@ -53,11 +53,25 @@ class ThreadManager:
     def save_configs(self, config, hyper_config):
         with open(os.path.join(self.tune_path, f"config_{self.thread_id}.json"), "w") as f:
             f.write(json.dumps(config))
-        with open(os.path.join(self.tune_path, f"hyper_config_{self.thread_id}.json"), "w") as f:
+        with open(hyper_config_path(self.tune_path), "w") as f:
             f.write(json.dumps(hyper_config))
 
     def log_print(self, message):
         self.logger.info(message)
+
+
+
+def initialize_and_train_model(hyper_config, config, dataset_module, dataset_config, manager=None):
+    device = torch.device("cpu")
+    manager.log_print(f"initializing multiprocessing on: {device}")
+    manager.log_print(f"Process ID: {os.getpid()}, Process Name: {mp.current_process().name}")
+    config["device"] = "cpu"
+    # merge the hyperparameter config into the ordinary config, giving priority to the hyperparameter config
+    for k, v in hyper_config.items():
+        config[k] = v
+    model = initialize.initialize_model(config)
+    return train_model.train_model(model, dataset_module, config, dataset_config, manager=manager)
+
 
 def trainable(package):
     """This function is now inside its own thread"""
@@ -73,6 +87,7 @@ def trainable(package):
     results = initialize_and_train_model(hyper_config, config, dataset_module, dataset_config, manager=manager)
     # wrap-up operations: save config as json, save hyper_config as json
     manager.save_configs(config, hyper_config)
+    return results
 
 
 def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config):
@@ -106,12 +121,14 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
     # Assemble local variables to be called from within a thread
     tune_directory = hyper_settings.get("tune_directory") # where all the tuning results live
     package_list = []
+    paths_list = []
+
     for hyperparameter_slice in hyper_list:
         # generate a datetime stample YYYY-MM-DD-HH-MM-SS-MS
         thread_id = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f")
         tune_path = os.path.join(tune_directory, f"thread_{thread_id}") # where this thread's results live
         os.makedirs(tune_path)
-
+        paths_list.append(tune_path)
         local_vars = {"thread_id": thread_id, "tune_path": tune_path}
         package = (hyperparameter_slice, config, dataset_module, dataset_config, local_vars)
         package_list.append(package)
@@ -119,10 +136,18 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 
     with mp.Pool(processes=num_cpus) as pool:
         # Map f to the list of parameters
-        results = pool.map(trainable, package_list)
-        print(results)
-
-    # using the hyper_config, build a pool
+        all_results = pool.map(trainable, package_list)
+    #cleanup
+    hyper_keys = list(hyper_config.keys())
+    columns = get_header().split(",") + hyper_keys
+    data = []
+    for i in range(len(all_results)):
+        hyper_setting = [hyper_list[i].get(k) for k in hyper_keys]
+        data.append(all_results[i] + hyper_setting)
+    df = pd.DataFrame(data, columns=columns)
+    # write the df to the tune_results.csv
+    final_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f")
+    df.to_csv(os.path.join(tune_directory, f"all_tune_results_{final_stamp}.csv"), index=False)
 
 
 # def tune_hyperparameters(hyper_config, hyper_settings, dataset_module, config, dataset_config):
