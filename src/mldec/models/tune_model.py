@@ -9,7 +9,8 @@ import multiprocessing as mp
 from mldec.models import initialize, train_model
 from mldec.pipelines import loggingx
 
-def initialize_and_train_model(hyper_config, config, dataset_module, dataset_config, manager=None):
+def initialize_and_train_model(hyper_config, config, dataset_module, dataset_config, manager):
+    """This function is called from within a thread, and therefore we expect to capture stdout."""
     device = torch.device("cpu")
     manager.log_print(f"initializing multiprocessing on: {device}")
     manager.log_print(f"Process ID: {os.getpid()}, Process Name: {mp.current_process().name}")
@@ -23,7 +24,7 @@ def initialize_and_train_model(hyper_config, config, dataset_module, dataset_con
 
 class ThreadManager:
     """
-    Each thread has its own manager to handle file I/O operations.
+    Each thread has its own manager to handle file I/O operations and stdout.
 
     We will write to `tune_directory`, which is a directory that is unique to this thread
     (timestamp for uniqueness). This directory will be populated with:
