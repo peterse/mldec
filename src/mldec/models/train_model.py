@@ -82,7 +82,7 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
         #     scheduler.step(val_acc)
 
         # We only do accuracy and loss checks every 10 epochs
-        if (epoch % 100) == 0:
+        if (epoch % 10) == 0:
             # Virtual Validation: Happens every 10 epochs; on whatever dataset we get.
             downsampled_weights_tensor = torch.tensor(downsampled_weights, dtype=torch.float32).to(device)
             model_wrapper.model.eval()        
@@ -119,7 +119,8 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
                 # torch.save(model.state_dict(), 'checkpoint.pt')
                 max_val_acc = val_acc
                 # save_str = " (Saved)"
-            log_print(f"Epoch {epoch+1}/{max_epochs} | Train Loss: {train_loss:.4E} | Val Loss: {val_loss:.4E} | Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}" + save_str)
+            results = [epoch, train_loss, train_acc, val_loss, val_acc]
+            log_print(f"Epoch {epoch+1}/{max_epochs} | Train Loss: {train_loss:.4E} | Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.4E} | Val Acc: {val_acc:.4f}" + save_str)
             
             # reporting every 10 epochs
             epoch_results = {
@@ -148,3 +149,6 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
 
         if epoch == max_epochs - 1:
             log_print("Max epochs reached")
+
+    # return the final results
+    return results

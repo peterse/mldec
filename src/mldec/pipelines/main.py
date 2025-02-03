@@ -20,7 +20,6 @@ def make_tune_directory(config):
 
 def main(config):
 
-
     # Configure the dataset.
     # Why pass a module? The main observation is that actually
     # training on real data is comparatively slow; we instead
@@ -43,20 +42,19 @@ def main(config):
     if config.get("mode") == "tune":
 
         tune_directory = make_tune_directory(config)
-        # tune_path = os.path.join(tune_directory, "tune_results.csv")
         # these are the parameterized hyperparameters we want to tune over
         # They vary by model, so be aware!
         hyper_config = {
-            'lr': np.logspace(-4,-2, num=10, base=10.0),
-            'hidden_dim': np.array([8, 16, 32, 64]),
-            'n_layers': np.array([1, 2, 3, 4]),
+            'lr': np.logspace(-3,-2, num=20, base=10.0),
+            'hidden_dim': np.array([8, 16, 32, 64, 128]),
+            'n_layers': np.array([3, 4, 5, 6]),
         }
         
         # these specify how tune will work
         hyper_settings = {
-            "total_cpus": 2,
+            "total_cpus": 40,
             "total_gpus": 0,
-            "num_samples": 2, # this is equal to total trials if no grid search
+            "num_samples": 80, 
             "tune_directory": tune_directory,
         }
         tune_model.tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config)
@@ -85,9 +83,9 @@ if __name__ == "__main__":
         "n_train": 1000,
         "dataset_module": "toy_problem",
         # Training config: 
-        "max_epochs": 300,
-        "batch_size": 500,
-        "patience": 2000,  
+        "max_epochs": 10000,
+        "batch_size": 50,
+        "patience": 5000,  
         "lr": 0.003, # !OVERWRITE
         "opt": "adam",
         "mode": mode,
