@@ -15,7 +15,8 @@ def initialize_model(config):
         from mldec.models import cnn
         conv_channels = config.get("conv_channels") # number of convolution channels per layer
         n_layers = config.get("n_layers")
-        model = cnn.CNN(input_dim, conv_channels, output_dim, n_layers, dropout, device=device)
+        kernel_size = config.get("kernel_size")
+        model = cnn.CNN(input_dim, conv_channels, output_dim, n_layers, kernel_size, dropout, device=device)
     
     elif config.get("model") == "encdec":
         from mldec.models import encdec

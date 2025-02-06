@@ -13,12 +13,13 @@ class CNN(nn.Module):
         device: torch.device or str
     """
     def __init__(self, input_dim, conv_channels, output_dim,
-                 n_layers, dropout=0, device=None):
+                 n_layers, kernel_size, dropout=0, device=None):
         super(CNN, self).__init__()
         self.input_dim = input_dim
         self.conv_channels = conv_channels
         self.output_dim = output_dim
         self.n_layers = n_layers
+        self.kernel_size = kernel_size
         self.dropout = dropout
         self.device = device
 
@@ -30,6 +31,7 @@ class CNN(nn.Module):
             conv_channels=self.conv_channels,
             output_dim=self.output_dim,
             n_layers=self.n_layers,
+            kernel_size=self.kernel_size,
             dropout=self.dropout
         ).to(self.device)
 
@@ -50,7 +52,7 @@ class CNN(nn.Module):
 
 
 class CNNmodel(nn.Module):
-    def __init__(self, input_dim, conv_channels, output_dim, n_layers, dropout=0):
+    def __init__(self, input_dim, conv_channels, output_dim, n_layers, kernel_size, dropout=0):
         super(CNNmodel, self).__init__()
         
         # If conv_channels is a single int, replicate it for n_layers
@@ -61,7 +63,7 @@ class CNNmodel(nn.Module):
         in_ch = 1  # Because we reshape x to [B, 1, T]
         for out_ch in conv_channels:
             # Convolution with padding to preserve length
-            layers.append(nn.Conv1d(in_ch, out_ch, kernel_size=3, stride=1, padding=1))
+            layers.append(nn.Conv1d(in_ch, out_ch, kernel_size=kernel_size, stride=1, padding=1))
             layers.append(nn.ReLU())
             if dropout > 0:
                 layers.append(nn.Dropout(dropout))
