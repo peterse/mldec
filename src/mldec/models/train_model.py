@@ -1,10 +1,6 @@
 import torch
 import numpy as np
-import os
-import datetime
-import json
-import time
-import multiprocessing as mp
+import copy
 
 from mldec.utils import evaluation, training
 from mldec.models import initialize
@@ -20,7 +16,7 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
     if manager is not None:
         log_print = manager.log_print
     else:
-        logger = loggingx.init_logger("train_model")
+        logger = loggingx.get_logger(config.get('log_name'))
         log_print = logger.info
 
     max_epochs = config['max_epochs']
@@ -39,7 +35,7 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
 
     tot_params, trainable_params = initialize.count_parameters(model_wrapper.model)
     log_print(f"Training model {config.get('model')} with {tot_params} total parameters, {trainable_params} trainable.")
-
+    
 
     # Virtual TRAINING: We don't actually need datasets to train the model. Instead,
     # we sample data ccording to the known probability distribution, and then reweight the loss
@@ -67,7 +63,8 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
         batched_data.append((Xb, Yb, weightsb))
     downsampled_weights /= n_batches # histogram of the training set
 
-    # Training loop
+    # We will keep the best results (according to val acc) and return only those.
+    best_results = None
     for epoch in range(max_epochs):
 
         train_loss = 0        
@@ -112,16 +109,6 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
             # for y, ypred, w in zip(Y, Y_pred, weights):
             #     if w > 0:
             #         print(y, ypred)
-
-            # Saving and printing
-            save_str = ""
-            if val_acc > max_val_acc:
-                # torch.save(model.state_dict(), 'checkpoint.pt')
-                max_val_acc = val_acc
-                # save_str = " (Saved)"
-            results = [epoch, train_loss, train_acc, val_loss, val_acc]
-            log_print(f"Epoch {epoch+1}/{max_epochs} | Train Loss: {train_loss:.4E} | Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.4E} | Val Acc: {val_acc:.4f}" + save_str)
-            
             # reporting every 10 epochs
             epoch_results = {
                     "epoch": epoch,
@@ -131,6 +118,12 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
                     "val_acc": val_acc,
                 }
             history.append(epoch_results)
+            save_str = ""
+            
+            if val_acc > max_val_acc:
+                max_val_acc = val_acc
+                best_results = copy.deepcopy(epoch_results)
+            log_print(f"Epoch {epoch+1}/{max_epochs} | Train Loss: {train_loss:.4E} | Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.4E} | Val Acc: {val_acc:.4f}" + save_str)
 
             if config["mode"] == 'tune':
                 # ray.train.report(epoch_results)
@@ -151,4 +144,4 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
             log_print("Max epochs reached")
 
     # return the final results
-    return results
+    return best_results
