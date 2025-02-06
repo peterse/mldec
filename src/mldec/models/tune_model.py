@@ -70,7 +70,7 @@ class ThreadManager:
 def make_tune_directory(config, abs_path):
 	#new
 	"""Build top-level tuning directories: tune_results/{model}_{dataset_module}/run_<run_id>"""
-	tune_directory = os.path.join(abs_path, "tune_results")
+	tune_directory = os.path.abspath(os.path.join(abs_path, "..", "tune_results"))
 	model_name = config.get("model")
 	dataset_module = config.get("dataset_module")
 	model_subdir = f"{model_name}_{dataset_module}"
@@ -193,7 +193,7 @@ def validate_tuning_parameters(config, hyper_config, logger):
 	ALLOWED_HYPERS = {
 		# "rnn": ["cell_type", "emb_size", "hidden_size", "depth", "dropout"],
 		"transformer": ["d_model", "nhead", "num_encoder_layers", "num_decoder_layers", "dim_feedforward", "dropout"],
-		"cnn": ["conv_channels", "n_layers", "dropout"],
+		"cnn": ["conv_channels", "n_layers", "kernel_size", "dropout"],
 		"ffnn": ["hidden_dim", "n_layers", "dropout"],
 	}
 	error = 0

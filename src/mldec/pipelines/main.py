@@ -44,7 +44,7 @@ def main(config):
 	if config.get("mode") == "tune":
 		# Load in the hyperparameters from a config path
 		hyper_config_dir = os.path.join(abs_path, "..", "hyper_config")
-		hyper_config_path = os.path.join(hyper_config_dir, config.get("hyper_config_path"))
+		hyper_config_path = os.path.abspath(os.path.join(hyper_config_dir, config.get("hyper_config_path")))
 		yaml = tune_model.load_hyperparameters(hyper_config_path)
 		model_type = config.get("model")
 		model_type_from_yaml = yaml["model_type"] 
@@ -52,7 +52,6 @@ def main(config):
 			raise ValueError(f"Model type {model_type} from args is different from model type {model_type_from_yaml} in hyperparameter config file")
 		hyper_config = yaml["hyperparameters"]
 		hyper_settings = yaml["settings"]
-
 
 		tune_model.validate_tuning_parameters(config, hyper_config, logger)
 		tune_model.tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config)
@@ -74,7 +73,8 @@ if __name__ == "__main__":
 	# only_good_examples = uniform distribution over good examples
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 	config = {
-		"device": "cpu", # !OVERWRITE
+		"model" : "cnn",
+		"device": "cpu", 
 		# Dataset config
 		"n": n,
 		"only_good_examples": only_good_examples, 
@@ -84,32 +84,32 @@ if __name__ == "__main__":
 		"max_epochs": 10,
 		"batch_size": 50,
 		"patience": 5000,  
-		"lr": 0.003, # !OVERWRITE
+		# "lr": 0.003, # !OVERWRITE
 		"opt": "adam",
 		"mode": mode,
 		# fixed model config
 		"input_dim": input_dim,
 		"output_dim": n,
-		"dropout": 0.05, # !OVERWRITE
-		"hyper_config_path": "cnn_config.json",
+		# "dropout": 0.05, # !OVERWRITE
+		"hyper_config_path": "cnn_toyproblem_only_good.yaml",
+
 	}
 
-	MODEL_CHOICE = "cnn"
-	if MODEL_CHOICE == "ffnn":
+	if config.get("model") == "ffnn":
 		model_config = {
 			"model": "ffnn",
 			"hidden_dim": 16, # !OVERWRITE
 			"n_layers": 3, # !OVERWRITE
 			"dropout": 0, # !OVERWRITE
 		}
-	elif MODEL_CHOICE == "cnn":
+	elif config.get("model") == "cnn":
 		model_config = {
 			"model": "cnn",
-			"conv_channels": 4, # !OVERWRITE
+			# "conv_channels": 4, # !OVERWRITE
 			"kernel_size": 3, # !OVERWRITE
-			"n_layers": 3, # !OVERWRITE
+			# "n_layers": 3, # !OVERWRITE
 		}
-	elif MODEL_CHOICE == "encdec":
+	elif config.get("model") == "encdec":
 		config["sos_eos"] = (0, 0)
 		model_config = {
 			"model": "encdec",
