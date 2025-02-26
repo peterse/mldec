@@ -81,7 +81,11 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         Xb, Yb, weightsb = Xb.to(device), Yb.to(device), weightsb.to(device)
         downsampled_weights += histb
         batched_data.append((Xb, Yb, weightsb))
-    downsampled_weights /= n_batches # histogram of the training set
+    downsampled_weights /= n_batches # histogram of the training setp[-=]
+
+
+    # we want two things: a lookup table for the training set, and baseline accuracy for training/validation
+
 
     # We will keep the best results (according to val acc) and return only those.
     best_results = None
@@ -111,7 +115,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
                 val_loss = criterion(val_preds, Y[:, 1:], weights).item()
             else:
                 val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, weights, criterion)
-            train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_weights_tensor) # training accuracy is evaluated on the same data from this epoch.
+            train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_weights_tensor)
 
             # DEBUG for encdec
             # tgt_input = Y[:, :-1] # shape [batch, output_len - 1]

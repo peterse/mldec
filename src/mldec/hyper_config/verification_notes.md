@@ -9,15 +9,15 @@ Transformer:
 CNN: 
  - lr > 0.01 mostly sucks
 
- ### Feb 25: Batch size 100, 1000 training, only good examples
+
+ ### Feb 25: 2000 training, variable batch size only good examples
 Transformer:
-    TODO
+    - only 1 decoder layer is bad
+    - lr < 0.005 is good (0.1 is bad)
+    - again, batchsize and dropout are confounded by removing a lot of bad variables discovered in earlier runs
+
 CNN:
  - kernel size 2 is bad
  - conv_channels 8 is bad
-
- ### Feb 25: 2000 training, variable batch size only good examples
-
-to check: 
- - last cnn run with batch sizes, 
- - last two transformer runs with dropouts and batch sizes
+ - n_layers=2 is bad
+ - dropout 0.05 _looks_ bad, but this is confounded by having a large number of experiments with dropout=0.05 fixed beforehand. same with batch_size=50

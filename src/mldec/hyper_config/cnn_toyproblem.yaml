@@ -1,0 +1,18 @@
+model_type: cnn
+hyperparameters:
+  lr: [0.0001, 0.0005, 0.001, 0.002, 0.006, 0.01]
+  conv_channels: [16, 24, 32]
+  dropout: [0.1, 0.15]
+  n_layers: [3, 4, 5, 6]
+  kernel_size: [3, 4]
+  batch_size: [250]
+
+knob_settings:
+  p: [0.15, 0.2, 0.25]
+
+settings:
+  total_cpus: 100
+  num_samples: 2
+  total_gpus: 0
+
+
