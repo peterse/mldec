@@ -78,7 +78,7 @@ def main(config):
 		train_model.train_model(model_wrapper, dataset_module, config, dataset_config, knob_settings)
 
 if __name__ == "__main__":
-	only_good_examples = True
+	only_good_examples = False
 	mode = "tune" # options: train, tune
 	n = 8
 	input_dim = n - 1
@@ -91,16 +91,16 @@ if __name__ == "__main__":
 	# only_good_examples = uniform distribution over good examples
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 	config = {
-		"model" : "transformer",
-		"hyper_config_path": "transformer_toyproblem_only_good.yaml",
+		"model" : "cnn",
+		"hyper_config_path": "cnn_toyproblem.yaml",
 		"device": "cpu", 
 		# Dataset config
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_train": 2000,
+		"n_train": 50000,
 		"dataset_module": "toy_problem",
 		# Training config: 
-		"max_epochs": 20,
+		"max_epochs": 20000,
 		# "batch_size": 100, # !OVERWRITE
 		"patience": 5000,  
 		# "lr": 0.003, # !OVERWRITE
