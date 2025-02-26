@@ -3,7 +3,7 @@ import numpy as np
 import copy
 
 from mldec.utils import evaluation, training
-from mldec.models import initialize
+from mldec.models import initialize, baselines
 from mldec.pipelines import loggingx
 
 def train_model(model_wrapper, dataset_module, config, validation_dataset_config, knob_settings, manager=None):
@@ -83,6 +83,16 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         batched_data.append((Xb, Yb, weightsb))
     downsampled_weights /= n_batches # histogram of the training set
 
+    # Baseline accuracies
+    lookup_decoder = baselines.RepetitionCodeLookupTable(n)
+    lookup_decoder.train_on_histogram(X, Y, downsampled_weights)
+    lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y, weights) 
+
+    minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight(n)
+    minimum_weight_decoder.make_decoder(X, Y)
+    minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y, weights)
+
+
     # We will keep the best results (according to val acc) and return only those.
     best_results = None
     for epoch in range(max_epochs):
@@ -94,6 +104,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             loss = model_wrapper.training_step(Xb, Yb, weightsb, optimizer, criterion)
             train_loss += loss.item()
         train_loss = train_loss / n_batches
+
 
         # if config.get('opt') == 'sgd':
         #     scheduler.step(val_acc)
@@ -136,6 +147,8 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
                     "train_acc": train_acc,
                     "val_loss": val_loss,
                     "val_acc": val_acc,
+                    "vs_lookup": val_acc - lookup_val_acc,
+                    "vs_minweight": val_acc - minimum_weight_val_acc
                 }
             history.append(epoch_results)
             save_str = ""

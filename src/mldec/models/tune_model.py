@@ -19,7 +19,7 @@ def hyper_config_path(path):
 	return os.path.join(path, f"hyper_config.json")
 
 def get_header():
-	return "epoch,train_loss,train_acc,val_loss,val_acc"
+	return "epoch,train_loss,train_acc,val_loss,val_acc,vs_lookup,vs_minweight"
 
 def load_hyperparameters(config_path):
     with open(config_path, 'r') as file:

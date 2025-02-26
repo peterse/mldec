@@ -137,8 +137,8 @@ def sample_virtual_XY(probs, m, n, dataset_config):
             Each row of Y is a unique bitstring that appeared in sampling.
         X is (N, n-1) array computed via the parity check matrix.
         weights: (N,) array of weights for each sample.
-        hist: (2**n,) array of counts of each bitstring in the dataset, ordered correctly. This is 
-            so that we can build a complete trainings et iteratively when batching training.
+        hist: (2**n,) array of counts of each bitstring in the dataset, ordered correctly to match
+            the ordering lf `probs`. This is used to build a complete training set iteratively during batching.
 
     """
     H = dataset_config['pcm']
