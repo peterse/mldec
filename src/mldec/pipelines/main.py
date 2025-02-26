@@ -19,11 +19,23 @@ def main(config):
 	dataset_module = config.get("dataset_module")
 	if dataset_module == "toy_problem":
 		n = config['n']
+		# this dataset describes what data the model will be evaluated on.
 		dataset_config = {
-			'p1': 0.1,
-			'p2': 0.07,
+			'p': 0.15,
+			'alpha': 0.33,
 			'pcm': toy_problem_data.repetition_pcm(n),
 			"sos_eos": config.get("sos_eos", None),
+		}
+		# KNOB SETTINGS: This is an additional description of what data the model will be trained on.
+		# train mode:
+		# anything not set in `knob_settings` will be defaulted to the `dataset_config`.
+		# tune mode:
+		# Anything not set in this can be written with knob_settings in the hyperparameter config.
+		# anything set in this that is attempted to be overwritten by the hyperparameter config will raise an error.
+		knob_settings = {
+			# 'p': dataset_config.get('p'), # how much to scale 'p' by
+			'alpha': dataset_config.get('alpha'),
+			# 'p': 0.22
 		}
 	else:
 		raise ValueError("Unknown dataset module")
@@ -34,6 +46,8 @@ def main(config):
 	# use a timestamp YYYYMMDDHHMMSS to identify the run
 	if config.get("mode") == 'train':
 		config["log_path"] = 'train_results/'
+		if not os.path.exists(config["log_path"]):
+			os.makedirs(config["log_path"])
 		log_file = os.path.join(config.get("log_path"), f'{timestamp}.txt')
 	elif config.get("mode") == 'tune':
 		config["tune_directory"] = tune_model.make_tune_directory(config, abs_path) # makes tune_results/{model}_{dataset}/run_{timestamp}
@@ -50,14 +64,18 @@ def main(config):
 		model_type_from_yaml = yaml["model_type"] 
 		if model_type != model_type_from_yaml:
 			raise ValueError(f"Model type {model_type} from args is different from model type {model_type_from_yaml} in hyperparameter config file")
-		hyper_config = yaml["hyperparameters"]
-		hyper_settings = yaml["settings"]
+		
+		knob_settings = yaml["knob_settings"]
+		tune_model.validate_knob_settings(config, knob_settings, dataset_config, logger)
 
+		hyper_config = yaml["hyperparameters"]
 		tune_model.validate_tuning_parameters(config, hyper_config, logger)
-		tune_model.tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config)
+		
+		hyper_settings = yaml["settings"]
+		tune_model.tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config, knob_settings)
 	else:
 		model_wrapper = initialize.initialize_model(config)
-		train_model.train_model(model_wrapper, dataset_module, config, dataset_config)
+		train_model.train_model(model_wrapper, dataset_module, config, dataset_config, knob_settings)
 
 if __name__ == "__main__":
 	only_good_examples = True
@@ -73,16 +91,17 @@ if __name__ == "__main__":
 	# only_good_examples = uniform distribution over good examples
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 	config = {
-		"model" : "cnn",
+		"model" : "transformer",
+		"hyper_config_path": "transformer_toyproblem_only_good.yaml",
 		"device": "cpu", 
 		# Dataset config
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_train": 1000,
+		"n_train": 2000,
 		"dataset_module": "toy_problem",
 		# Training config: 
-		"max_epochs": 10,
-		"batch_size": 50,
+		"max_epochs": 20,
+		# "batch_size": 100, # !OVERWRITE
 		"patience": 5000,  
 		# "lr": 0.003, # !OVERWRITE
 		"opt": "adam",
@@ -91,8 +110,6 @@ if __name__ == "__main__":
 		"input_dim": input_dim,
 		"output_dim": n,
 		# "dropout": 0.05, # !OVERWRITE
-		"hyper_config_path": "cnn_toyproblem_only_good.yaml",
-
 	}
 
 	if config.get("model") == "ffnn":
@@ -106,18 +123,18 @@ if __name__ == "__main__":
 		model_config = {
 			"model": "cnn",
 			# "conv_channels": 4, # !OVERWRITE
-			"kernel_size": 3, # !OVERWRITE
+			# "kernel_size": 3, # !OVERWRITE
 			# "n_layers": 3, # !OVERWRITE
 		}
-	elif config.get("model") == "encdec":
+	elif config.get("model") == "transformer":
 		config["sos_eos"] = (0, 0)
 		model_config = {
-			"model": "encdec",
-			"d_model": 16, # !OVERWRITE
-			"nhead": 4, # !OVERWRITE
-			"num_encoder_layers": 2, # !OVERWRITE
-			"num_decoder_layers": 2, # !OVERWRITE
-			"dim_feedforward": 8, # !OVERWRITE
+			"model": "transformer",
+			# "d_model": 16, # !OVERWRITE
+			# "nhead": 4, # !OVERWRITE
+			# "num_encoder_layers": 2, # !OVERWRITE
+			# "num_decoder_layers": 2, # !OVERWRITE
+			# "dim_feedforward": 8, # !OVERWRITE
 		}
 
 	config.update(model_config)
