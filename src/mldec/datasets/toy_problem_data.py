@@ -54,10 +54,12 @@ def noise_model(s, n, dataset_config, permute=None, numpy=False):
 
     Args:
         s: (n_data, n) array of bitstrings.
-        p1, p2: bitflip probabilities for the first and second half of the bit
+        p, alpha: p1 = p is the bitflip probability for the first half, and p2 = alpha * p1 for the second half.
 
     """
-    p1, p2 = dataset_config['p1'], dataset_config['p2']
+    p, alpha = dataset_config['p'], dataset_config['alpha']
+    p1 = p
+    p2 = p * alpha
     if permute is not None:
         s = s[:,permute]
     if numpy:

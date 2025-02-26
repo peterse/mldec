@@ -91,7 +91,7 @@ def trainable(package):
 	"""This function is now inside its own thread"""
 	# Note: Function wrapping within `tune_hyperparameters_multiprocessing` is dangerous
 	# because of serializability issues, e.g. pickling a function that is not defined at the module level
-	(hyper_config, config, dataset_module, dataset_config, thread_vars) = package
+	(hyper_config, config, dataset_module, dataset_config, knob_settings, thread_vars) = package
 	manager = ThreadManager(thread_vars)
 
 	device = torch.device("cpu")
@@ -102,12 +102,12 @@ def trainable(package):
 	for k, v in hyper_config.items():
 		config[k] = v
 	model = initialize.initialize_model(config)
-	results = train_model.train_model(model, dataset_module, config, dataset_config, manager=manager)
+	results = train_model.train_model(model, dataset_module, config, dataset_config, knob_settings, manager=manager)
 	manager.save_configs(config, hyper_config)
 	return results
 
 
-def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config):
+def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config, knob_settings):
 	"""
 	hyper_config should contain a list for each hyperparameter in the search, e.g.
 	hyper_config = {
@@ -134,6 +134,13 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 		for key, value in hyper_config.items():
 			hyperparameter_slice[key] = np.random.choice(value).item() # keep serializable
 		hyper_list.append(hyperparameter_slice)
+	# get knob settings to pass directly into train func
+	knob_list = []
+	for _ in range(hyper_settings.get("num_samples")):
+		knob_slice = {}
+		for key, value in knob_settings.items():
+			knob_slice[key] = np.random.choice(value).item()
+		knob_list.append(knob_slice)
 
 	# Assemble local variables to be called from within a thread
 	tune_directory = config.get("tune_directory") # where all the tuning results live
@@ -143,12 +150,13 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 
 	for thread_id, hyperparameter_slice in enumerate(hyper_list):
 		# generate a datetime stample YYYY-MM-DD-HH-MM-SS-MS
-		tune_path = os.path.join(tune_directory, f"job_{thread_id}") # where this thread's results live
+		knob_slice = knob_list[thread_id]
+		tune_path = os.path.join(tune_directory, f"zjob_{thread_id}") # where this thread's results live
 		os.makedirs(tune_path)
 		paths_list.append(tune_path)
 		logger_name = f"thread_{thread_id}" # we cannot serialize a logger effectively, so we pass around its name
 		thread_pkg = {"thread_id": thread_id, "tune_path": tune_path, "logger_name": logger_name}
-		package = (hyperparameter_slice, config, dataset_module, dataset_config, thread_pkg)
+		package = (hyperparameter_slice, config, dataset_module, dataset_config, knob_slice, thread_pkg)
 		package_list.append(package)
 		time.sleep(0.1) # to ensure unique timestamps
 
@@ -160,14 +168,16 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 	logger.debug("All threads have completed. Cleaning up...")
 
 	hyper_keys = list(hyper_config.keys())
+	knob_keys = list(knob_settings.keys())
 	header_keys = get_header().split(",")
-	columns = header_keys + hyper_keys
+	columns = header_keys + hyper_keys + knob_keys
 	# columns = hyper_keys + header_keys
 	data = []
 	for i in range(len(all_results)):
 		hyper_setting = [hyper_list[i].get(k) for k in hyper_keys]
+		knob_setting = [knob_list[i].get(k) for k in knob_keys]
 		best_result = [all_results[i].get(k) for k in header_keys]
-		data.append(best_result + hyper_setting)
+		data.append(best_result + hyper_setting + knob_setting)
 	df = pd.DataFrame(data, columns=columns)
 
 	model_name = config.get("model")
@@ -219,7 +229,26 @@ def validate_tuning_parameters(config, hyper_config, logger):
 				err_out += err_str + "\n"
 				logger.error(err_str)
 				error = 1
+	# force an error if hyper_config is overwriting a set config option
+	for k, v in hyper_config.items():
+		if k in config:
+			err_str = "Hyperparameter {} is specified in `hyper_config`, but `config` is also set. Delete that setting in config".format(k)
+			err_out += err_str + "\n"
+			logger.error(err_str)
+			error = 1
 	if error:
 		raise ValueError("Hyperparameters are specified in both commandline and hyperparameters:\n{}".format(err_out))
 	logger.debug("Hyperparameters validated")
 
+
+def validate_knob_settings(config, knob_settings, dataset_config, logger):
+	# check that the dataset config is valid
+	return 
+	# dataset_module = config.get("dataset_module")
+	# error = 0
+	# if knob_settings.get("dataset_module") != dataset_module:
+	# 	err_str = f"Dataset module {dataset_module} does not match dataset module in hyperparameters {dataset_module}"
+	# 	err_out += err_str + "\n"
+	# 	error = 1
+	# if error:
+	# 	raise ValueError("Hyperparameters are specified in both commandline and hyperparameters:\n{}".format(err_out))

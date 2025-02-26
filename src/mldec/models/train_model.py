@@ -6,7 +6,7 @@ from mldec.utils import evaluation, training
 from mldec.models import initialize
 from mldec.pipelines import loggingx
 
-def train_model(model_wrapper, dataset_module, config, dataset_config, manager=None):
+def train_model(model_wrapper, dataset_module, config, validation_dataset_config, knob_settings, manager=None):
 
     # de-serializing
     if dataset_module == "toy_problem":
@@ -26,6 +26,11 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
     mode = config['mode']
     n_train = config['n_train']
 
+    # dump the hyperparameters
+    log_print(f"Hyperparameters:")
+    for k, v in config.items():
+        log_print(f"  {k}: {v}")
+
     history = []    
     criterion = evaluation.WeightedSequenceLoss(torch.nn.BCEWithLogitsLoss)
 
@@ -36,7 +41,22 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
     tot_params, trainable_params = initialize.count_parameters(model_wrapper.model)
     log_print(f"Training model {config.get('model')} with {tot_params} total parameters, {trainable_params} trainable.")
     
+    # TURNING THE KNOB: We will use (potentially) different dataset configs for training vs. validation
+    validation_dataset_config = copy.deepcopy(validation_dataset_config)
+    training_dataset_config = {}
+    for k, v in validation_dataset_config.items():
+        if knob_settings.get(k) is not None:
+            training_dataset_config[k] = knob_settings[k] # overwrite the validation dataset using knob settings
+        else:
+            training_dataset_config[k] = v # use the same as the validation set
 
+    # dump the validation and training dataset configs
+    log_print(f"Validation dataset config:")
+    for k, v in validation_dataset_config.items():
+        log_print(f"  {k}: {v}")
+    log_print(f"Training dataset config:")
+    for k, v in training_dataset_config.items():
+        log_print(f"  {k}: {v}")
     # Virtual TRAINING: We don't actually need datasets to train the model. Instead,
     # we sample data ccording to the known probability distribution, and then reweight the loss
     # according to a histogram of that sample. The loss re-weighting is O(2^nbits) so this is
@@ -46,9 +66,9 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
     n_batches = n_train // batch_size
     downsampled_weights = np.zeros(2**n) # this will accumulate a histogram of the training set over all batches
     if config.get('only_good_examples'):
-        X, Y, weights = dataset_module.uniform_over_good_examples(n, dataset_config)
+        X, Y, weights = dataset_module.uniform_over_good_examples(n, validation_dataset_config)
     else:
-        X, Y, weights = dataset_module.create_dataset_training(n, dataset_config)
+        X, Y, weights = dataset_module.create_dataset_training(n, validation_dataset_config)
     # copy the weights
     weights_np = weights.numpy()
     weights = torch.tensor(weights, dtype=torch.float32)  # true distribution of bitstrings  
@@ -57,7 +77,7 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
 
     # build a train set one batch at a time
     for _ in range(n_batches):
-        Xb, Yb, weightsb, histb = dataset_module.sample_virtual_XY(weights_np, batch_size, n, dataset_config)
+        Xb, Yb, weightsb, histb = dataset_module.sample_virtual_XY(weights_np, batch_size, n, training_dataset_config)
         Xb, Yb, weightsb = Xb.to(device), Yb.to(device), weightsb.to(device)
         downsampled_weights += histb
         batched_data.append((Xb, Yb, weightsb))
@@ -85,7 +105,7 @@ def train_model(model_wrapper, dataset_module, config, dataset_config, manager=N
             model_wrapper.model.eval()        
             # Heads up: For autoregressive models, train_loss tracks something very different than val_loss!
             # val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, weights, criterion)
-            if config.get('model') == 'encdec':
+            if config.get('model') == 'transformer':
                 val_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, weights)
                 val_preds = model_wrapper.model(X, Y[:,:-1], tgt_mask=model_wrapper.tgt_mask)
                 val_loss = criterion(val_preds, Y[:, 1:], weights).item()

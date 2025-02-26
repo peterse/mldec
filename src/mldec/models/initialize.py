@@ -18,7 +18,7 @@ def initialize_model(config):
         kernel_size = config.get("kernel_size")
         model = cnn.CNN(input_dim, conv_channels, output_dim, n_layers, kernel_size, dropout, device=device)
     
-    elif config.get("model") == "encdec":
+    elif config.get("model") == "transformer":
         from mldec.models import encdec
         d_model = config.get("d_model") # d_model, or 'width' = emb_dimension=Q,K,V dimensions; divided by nhead for multihead attention
         nhead = config.get("nhead")
