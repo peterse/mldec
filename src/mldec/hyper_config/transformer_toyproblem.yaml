@@ -10,9 +10,10 @@ hyperparameters:
   batch_size: [256]
 
 knob_settings:
-  p: [0.1, 0.15, 0.2]
+  p: [0.1, 0.15, 0.2, 0.25]
 
 settings:
   total_cpus: 100
-  num_samples: 2
+  num_samples: 400
   total_gpus: 0
+

@@ -54,8 +54,16 @@ class ThreadManager:
 			f.write(get_header() + "\n")
 
 	def report(self, epoch_results):
+		write_str = ""
+		split_header = get_header().split(",")
+		for i, k in enumerate(split_header):
+			write_str += f"{epoch_results[k]}"
+			if i < len(split_header) - 1:
+				write_str += ","
+			else:
+				write_str += "\n"
 		with open(self.tune_results_path, "a") as f:
-			f.write(f"{epoch_results['epoch']},{epoch_results['train_loss']},{epoch_results['train_acc']},{epoch_results['val_loss']},{epoch_results['val_acc']}\n")
+			f.write(write_str)
 
 	def save_configs(self, config, hyper_config):
 		# with open(os.path.join(self.tune_path, f"config_{self.thread_id}.json"), "w") as f:

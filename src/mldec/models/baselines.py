@@ -59,7 +59,7 @@ class RepetitionCodeLookupTable():
 
 class RepetitionCodeMinimumWeight():
     """Evaluate the 'minimum weight decoder' for a repetition code."""
-    def __init__(self, n):
+    def __init__(self):
         self.table = {}
 
     def make_decoder(self, X, Y):

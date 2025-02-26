@@ -81,14 +81,18 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         Xb, Yb, weightsb = Xb.to(device), Yb.to(device), weightsb.to(device)
         downsampled_weights += histb
         batched_data.append((Xb, Yb, weightsb))
-    downsampled_weights /= n_batches # histogram of the training set
+    downsampled_weights /= n_batches # histogram of the training setp[-=]
+
+
+    # we want two things: a lookup table for the training set, and baseline accuracy for training/validation
+
 
     # Baseline accuracies
-    lookup_decoder = baselines.RepetitionCodeLookupTable(n)
+    lookup_decoder = baselines.RepetitionCodeLookupTable()
     lookup_decoder.train_on_histogram(X, Y, downsampled_weights)
     lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y, weights) 
 
-    minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight(n)
+    minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight()
     minimum_weight_decoder.make_decoder(X, Y)
     minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y, weights)
 
@@ -122,7 +126,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
                 val_loss = criterion(val_preds, Y[:, 1:], weights).item()
             else:
                 val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, weights, criterion)
-            train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_weights_tensor) # training accuracy is evaluated on the same data from this epoch.
+            train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_weights_tensor)
 
             # DEBUG for encdec
             # tgt_input = Y[:, :-1] # shape [batch, output_len - 1]
@@ -159,7 +163,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             log_print(f"Epoch {epoch+1}/{max_epochs} | Train Loss: {train_loss:.4E} | Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.4E} | Val Acc: {val_acc:.4f}" + save_str)
 
             if config["mode"] == 'tune':
-                # ray.train.report(epoch_results)
                 manager.report(epoch_results)
 
         early_stopping(val_loss, model_wrapper.model)
