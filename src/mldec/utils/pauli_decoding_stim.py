@@ -147,6 +147,7 @@ def compute_coset_distribution_pure_errors(generators, pure_errors, logical_paul
     r = len(generators)
     n = len(generators[0])
     k = n - r
+    print(r, n, k)
     assert len(logical_paulis) == 2*k
     assert len(pure_errors) == r
 

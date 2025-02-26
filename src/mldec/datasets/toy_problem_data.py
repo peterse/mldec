@@ -43,8 +43,8 @@ def create_dataset_training(n, dataset_config):
 
         
 
-def noise_model(s, n, dataset_config, permute=None):
-    """Create the biased bitflip noise model 
+def noise_model(s, n, dataset_config, permute=None, numpy=False):
+    """Create the probability of array `s` under the biased bitflip model.
     
     The first n//2 bits have prob. p1 of flipping, the last n//2 have prob. p2.
     
@@ -62,6 +62,11 @@ def noise_model(s, n, dataset_config, permute=None):
     p2 = p * alpha
     if permute is not None:
         s = s[:,permute]
+    if numpy:
+        p_first = np.prod(p1*s[:,:n//2] +(1-p1)*(1-s[:,:n//2]), axis=1)
+        p_second = np.prod(p2*s[:,n//2:] + (1-p2)*(1-s[:,n//2:]), axis=1)
+        return np.multiply(p_first, p_second)
+    
     p_first = torch.prod(p1*s[:,:n//2] +(1-p1)*(1-s[:,:n//2]), axis=1)
     p_second = torch.prod(p2*s[:,n//2:] + (1-p2)*(1-s[:,n//2:]), axis=1)
     return torch.multiply(p_first, p_second)
