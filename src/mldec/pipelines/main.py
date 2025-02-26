@@ -91,8 +91,8 @@ if __name__ == "__main__":
 	# only_good_examples = uniform distribution over good examples
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 	config = {
-		"model" : "cnn",
-		"hyper_config_path": "cnn_toyproblem.yaml",
+		"model" : "transformer",
+		"hyper_config_path": "transformer_toyproblem.yaml",
 		"device": "cpu", 
 		# Dataset config
 		"n": n,
@@ -100,9 +100,9 @@ if __name__ == "__main__":
 		"n_train": 50000,
 		"dataset_module": "toy_problem",
 		# Training config: 
-		"max_epochs": 20000,
+		"max_epochs": 10000,
 		# "batch_size": 100, # !OVERWRITE
-		"patience": 5000,  
+		"patience": 2000,  
 		# "lr": 0.003, # !OVERWRITE
 		"opt": "adam",
 		"mode": mode,

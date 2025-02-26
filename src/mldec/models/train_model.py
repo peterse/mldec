@@ -88,11 +88,11 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
 
 
     # Baseline accuracies
-    lookup_decoder = baselines.RepetitionCodeLookupTable(n)
+    lookup_decoder = baselines.RepetitionCodeLookupTable()
     lookup_decoder.train_on_histogram(X, Y, downsampled_weights)
     lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y, weights) 
 
-    minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight(n)
+    minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight()
     minimum_weight_decoder.make_decoder(X, Y)
     minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y, weights)
 
@@ -163,7 +163,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             log_print(f"Epoch {epoch+1}/{max_epochs} | Train Loss: {train_loss:.4E} | Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.4E} | Val Acc: {val_acc:.4f}" + save_str)
 
             if config["mode"] == 'tune':
-                # ray.train.report(epoch_results)
                 manager.report(epoch_results)
 
         early_stopping(val_loss, model_wrapper.model)

@@ -4,8 +4,7 @@ import torch
 
 class RepetitionCodeLookupTable():
     """Train a lookup table to just return the most likely error given a syndrome, from empirical data."""
-    def __init__(self, n):
-        self.n = n
+    def __init__(self):
         self.table = {} # map {0,1}^(n-1) -> {0,1}^n
     
     def train_on_histogram(self, X, Y, hist):
@@ -39,7 +38,7 @@ class RepetitionCodeLookupTable():
             p1, p2 = dct[xkey][y1], dct[xkey][y2]
             if p1 == p2:
                 if p1 == 0:
-                    self.table[xkey] = tuple([0]*self.n)
+                    self.table[xkey] = tuple([0]*len(y1))
                     continue
                 max_key = (y1, y2)[np.random.choice(2)] # probably never happens
             elif dct[xkey][y1] > dct[xkey][y2]:
@@ -59,8 +58,7 @@ class RepetitionCodeLookupTable():
 
 class RepetitionCodeMinimumWeight():
     """Evaluate the 'minimum weight decoder' for a repetition code."""
-    def __init__(self, n):
-        self.n = n
+    def __init__(self):
         self.table = {}
 
     def make_decoder(self, X, Y):
