@@ -21,8 +21,8 @@ def main(config):
 		n = config['n']
 		# this dataset describes what data the model will be evaluated on.
 		dataset_config = {
-			'p': 0.15,
-			'alpha': 0.33,
+			'p': 0.1,
+			'alpha': 0.7,
 			'pcm': toy_problem_data.repetition_pcm(n),
 			"sos_eos": config.get("sos_eos", None),
 		}
@@ -33,9 +33,8 @@ def main(config):
 		# Anything not set in this can be written with knob_settings in the hyperparameter config.
 		# anything set in this that is attempted to be overwritten by the hyperparameter config will raise an error.
 		knob_settings = {
-			# 'p': dataset_config.get('p'), # how much to scale 'p' by
+			# 'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
 			'alpha': dataset_config.get('alpha'),
-			# 'p': 0.22
 		}
 	else:
 		raise ValueError("Unknown dataset module")
@@ -78,10 +77,6 @@ def main(config):
 		train_model.train_model(model_wrapper, dataset_module, config, dataset_config, knob_settings)
 
 if __name__ == "__main__":
-	only_good_examples = False
-	mode = "tune" # options: train, tune
-	n = 8
-	input_dim = n - 1
 
 	# Some notes:
 	# scale up lr with batchsize in general.
@@ -90,19 +85,25 @@ if __name__ == "__main__":
 	# !OVERWRITE indiicates a hyperparam that may be overwritten by raytune `hyper_config` or raytune internals
 	# only_good_examples = uniform distribution over good examples
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
+
+	only_good_examples = False
+	mode = "tune" # options: train, tune
+	n = 8
+	input_dim = n - 1
+	MODEL = "cnn"
 	config = {
-		"model" : "transformer",
-		"hyper_config_path": "transformer_toyproblem.yaml",
+		"model" : MODEL,
+		"hyper_config_path": f"{MODEL}_toyproblem.yaml",
 		"device": "cpu", 
 		# Dataset config
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_train": 50000,
+		"n_train": 2000,
 		"dataset_module": "toy_problem",
 		# Training config: 
 		"max_epochs": 10000,
-		# "batch_size": 100, # !OVERWRITE
-		"patience": 2000,  
+		# "batch_size": 250, # !OVERWRITE
+		"patience": 4000,  
 		# "lr": 0.003, # !OVERWRITE
 		"opt": "adam",
 		"mode": mode,

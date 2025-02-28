@@ -64,37 +64,47 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     # TODO: optimization for bandwidth; maybe pre-load large chunks of data since its only a few KB
     # per batch
     n_batches = n_train // batch_size
-    downsampled_weights = np.zeros(2**n) # this will accumulate a histogram of the training set over all batches
     if config.get('only_good_examples'):
-        X, Y, weights = dataset_module.uniform_over_good_examples(n, validation_dataset_config)
+        X, Y, val_weights = dataset_module.uniform_over_good_examples(n, validation_dataset_config)
+        train_weights = val_weights # no knob in this setting
     else:
-        X, Y, weights = dataset_module.create_dataset_training(n, validation_dataset_config)
+        # compute the probability weights corresponding to the p for this distribtion
+        X, Y, val_weights = dataset_module.create_dataset_training(n, validation_dataset_config)
+        # compute the probability weights after 'turning the knob' on the p
+        _, _, train_weights = dataset_module.create_dataset_training(n, training_dataset_config)
     # copy the weights
-    weights_np = weights.numpy()
-    weights = torch.tensor(weights, dtype=torch.float32)  # true distribution of bitstrings  
-    X, Y, weights = X.to(device), Y.to(device), weights.to(device)
+    train_weights_np = train_weights.numpy()
+    val_weights = torch.tensor(val_weights, dtype=torch.float32)  # true distribution of bitstrings  
+    X, Y, val_weights = X.to(device), Y.to(device), val_weights.to(device)
     batched_data = []
 
     # build a train set one batch at a time
+    # this will accumulate a histogram of the training set over all batches
+    downsampled_train_weights = np.zeros(2**n) 
     for _ in range(n_batches):
-        Xb, Yb, weightsb, histb = dataset_module.sample_virtual_XY(weights_np, batch_size, n, training_dataset_config)
-        Xb, Yb, weightsb = Xb.to(device), Yb.to(device), weightsb.to(device)
-        downsampled_weights += histb
-        batched_data.append((Xb, Yb, weightsb))
-    downsampled_weights /= n_batches # histogram of the training setp[-=]
+        Xb, Yb, train_weightsb, histb = dataset_module.sample_virtual_XY(train_weights_np, batch_size, n, training_dataset_config)
+        Xb, Yb, train_weightsb = Xb.to(device), Yb.to(device), train_weightsb.to(device)
+        downsampled_train_weights += histb
+        batched_data.append((Xb, Yb, train_weightsb))
+    downsampled_train_weights /= n_batches # histogram of the training set
 
+    log_print("Train weights:")
+    log_print(downsampled_train_weights)
+
+    log_print("Test val_weights:")
+    log_print(val_weights)
 
     # we want two things: a lookup table for the training set, and baseline accuracy for training/validation
 
 
     # Baseline accuracies
     lookup_decoder = baselines.RepetitionCodeLookupTable()
-    lookup_decoder.train_on_histogram(X, Y, downsampled_weights)
-    lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y, weights) 
+    lookup_decoder.train_on_histogram(X, Y, downsampled_train_weights)
+    lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y, val_weights) 
 
     minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight()
     minimum_weight_decoder.make_decoder(X, Y)
-    minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y, weights)
+    minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y, val_weights)
 
 
     # We will keep the best results (according to val acc) and return only those.
@@ -116,17 +126,17 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         # We only do accuracy and loss checks every 10 epochs
         if (epoch % 10) == 0:
             # Virtual Validation: Happens every 10 epochs; on whatever dataset we get.
-            downsampled_weights_tensor = torch.tensor(downsampled_weights, dtype=torch.float32).to(device)
+            downsampled_train_weights_tensor = torch.tensor(downsampled_train_weights, dtype=torch.float32).to(device)
             model_wrapper.model.eval()        
             # Heads up: For autoregressive models, train_loss tracks something very different than val_loss!
             # val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, weights, criterion)
             if config.get('model') == 'transformer':
-                val_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, weights)
+                val_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, val_weights)
                 val_preds = model_wrapper.model(X, Y[:,:-1], tgt_mask=model_wrapper.tgt_mask)
-                val_loss = criterion(val_preds, Y[:, 1:], weights).item()
+                val_loss = criterion(val_preds, Y[:, 1:], val_weights).item()
             else:
-                val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, weights, criterion)
-            train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_weights_tensor)
+                val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, val_weights, criterion)
+            train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_train_weights_tensor)
 
             # DEBUG for encdec
             # tgt_input = Y[:, :-1] # shape [batch, output_len - 1]
@@ -134,7 +144,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             # model_out = model_wrapper.model(X, tgt_input)
             # pred_out = (model_out >= 0).long()
             # print("training comparison")
-            # for y, ypred, w in zip(tgt_out, pred_out, downsampled_weights):
+            # for y, ypred, w in zip(tgt_out, pred_out, downsampled_train_weights):
             #     if w > 0:
             #         print(y, ypred)
             # print()
