@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import os
+import shutil
 import datetime
 import json
 import time
@@ -115,11 +116,11 @@ def trainable(package):
 	return results
 
 
-def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config, knob_settings):
+def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config, knob_settings, delete_intermediate_dirs=True):
 	"""
 	hyper_config should contain a list for each hyperparameter in the search, e.g.
 	hyper_config = {
-		'lr': np.loguniform(1e-4, 1e-2),
+		'lr': [0.00001, 0.00005, ...],
 		'hidden_dim': [8, 16, 32, 64],
 		'n_layers': [1, 2, 3, 4],
 }
@@ -142,13 +143,26 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 		for key, value in hyper_config.items():
 			hyperparameter_slice[key] = np.random.choice(value).item() # keep serializable
 		hyper_list.append(hyperparameter_slice)
+
 	# get knob settings to pass directly into train func
+	# we do not randomly sample knob settings, we instead distribute them evenly
 	knob_list = []
-	for _ in range(hyper_settings.get("num_samples")):
-		knob_slice = {}
-		for key, value in knob_settings.items():
-			knob_slice[key] = np.random.choice(value).item()
-		knob_list.append(knob_slice)
+	num_samples = hyper_settings.get("num_samples")
+	if dataset_module == "toy_problem":
+		div = len(knob_settings.get('p')) # FIXME: shouldn't be specific to this toy model
+		assert len(knob_settings.keys()) == 1 # otherwise this 'grid search' needs to be 2D
+		rem = num_samples % div
+		quot = num_samples // div
+		for i in range(div):
+			# we will get about `div` samples for each knob setting
+			for _ in range(quot):
+				knob_list.append({'p': knob_settings.get('p')[i]})
+		# distribute the remainder
+		for j in range(rem):
+			knob_list.append({'p': knob_settings.get('p')[j]})
+	else:
+		raise NotImplementedError
+
 
 	# Assemble local variables to be called from within a thread
 	tune_directory = config.get("tune_directory") # where all the tuning results live
@@ -172,9 +186,6 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 		# Map f to the list of parameters
 		all_results = pool.map(trainable, package_list)
 
-	#cleanup
-	logger.debug("All threads have completed. Cleaning up...")
-
 	hyper_keys = list(hyper_config.keys())
 	knob_keys = list(knob_settings.keys())
 	header_keys = get_header().split(",")
@@ -196,6 +207,13 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 		res_fname += "_only_good_examples"
 	res_fname += "_results.csv"
 	df.to_csv(os.path.join(tune_directory, res_fname), index=False)
+
+	#cleanup
+	logger.debug("All threads have completed. Cleaning up...")
+	if delete_intermediate_dirs:
+		for path in paths_list:
+			shutil.rmtree(path)
+
 
 	config_dict = {k: v for k, v in config.items() if not k.startswith("__")}
 	for k in hyper_keys:

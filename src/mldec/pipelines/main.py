@@ -98,7 +98,7 @@ if __name__ == "__main__":
 		# Dataset config
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_train": 2000,
+		"n_train": 100,
 		"dataset_module": "toy_problem",
 		# Training config: 
 		"max_epochs": 10000,
