@@ -52,7 +52,8 @@ class RepetitionCodeLookupTable():
         if isinstance(X, torch.Tensor):
             X = X.numpy()
         for x in X:
-            out.append(self.table[tuple(x)])
+            ypred = self.table[tuple(x)]
+            out.append(ypred)
         return torch.tensor(out)
     
 
