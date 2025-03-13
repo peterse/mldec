@@ -146,6 +146,7 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 
 	# get knob settings to pass directly into train func
 	# we do not randomly sample knob settings, we instead distribute them evenly
+	# among all of the samples for this run.
 	knob_list = []
 	num_samples = hyper_settings.get("num_samples")
 	if dataset_module == "toy_problem":

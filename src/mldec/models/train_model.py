@@ -8,10 +8,14 @@ from mldec.pipelines import loggingx
 
 def train_model(model_wrapper, dataset_module, config, validation_dataset_config, knob_settings, manager=None):
 
-    # de-serializing
+    # de-serializing the dataset module
     if dataset_module == "toy_problem":
         from mldec.datasets import toy_problem_data
         dataset_module = toy_problem_data
+    elif dataset_module == "toric_code":
+        from mldec.datasets import toric_code_data
+        dataset_module = toric_code_data
+
     device = torch.device(config.get('device'))
     if manager is not None:
         log_print = manager.log_print
