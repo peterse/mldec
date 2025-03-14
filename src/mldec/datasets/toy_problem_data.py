@@ -3,6 +3,7 @@
 import numpy as np
 import torch
 from mldec.utils.bit_tools import binarr
+from mldec.datasets import tools
 
 
 def repetition_pcm(n):
@@ -103,23 +104,6 @@ def optimal_decoding(n, p1, p2):
 
 
 
-def sample_histogram(probs, m):
-    """Sample m bitstrings from a distribution defined by probs.
-
-    This is used for "virtual training": since we have discrete data,
-    instead of sampling `n_train` bitstrings for training data, we can
-    just reweight a loss function according to a histogram of n_train 
-    samples from probs.
-
-    Args:
-        probs: (2**n,) array of probabilities of each bitstring
-        m: number of samples to draw
-    """
-    sample = np.random.choice(len(probs), m, p=probs)
-    hist = np.zeros(len(probs))
-    for s in sample:
-        hist[s] += 1
-    return hist / m
 
 def sample_virtual_XY(probs, m, n, dataset_config):
     """Sample virtual dataset.
@@ -143,7 +127,7 @@ def sample_virtual_XY(probs, m, n, dataset_config):
     """
     H = dataset_config['pcm']
 
-    hist = sample_histogram(probs, m) 
+    hist = tools.sample_histogram(probs, m) 
     base = binarr(n)
     Y = np.array([base[i] for i in range(len(probs)) if hist[i] > 0])
     X = Y @ H.T % 2

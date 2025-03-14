@@ -117,3 +117,17 @@ def rotated_toric_code_logicals(L):
     z_L = num_pauli_to_str([1, 4, 7], n, "Z")
     z_L = stim.PauliString(z_L)
     return x_L, z_L
+
+def generators_STL_Hx_Hz(L):
+    """Create the generators for the stabilizer gp, pure error gp, and logical gp, along with pcms."""
+    if L != 3:
+        raise NotImplementedError("Only L=3 is implemented")
+    x_generators, z_generators, Hx, Hz = rotated_surface_code_stabilizers(L)
+    generators = x_generators + z_generators
+    t = stim.Tableau.from_stabilizers(generators, allow_redundant=True, allow_underconstrained=True)
+    # we leave out the final stabilizer that canonically represents the degree of 
+    # freedom for a state we didn't specify
+    generators_S = [t.z_output(k) for k in range(len(t) - 1)] # stabilizer generators, ordered X type then Z type
+    generators_T = [t.x_output(k) for k in range(len(t) - 1)] # pure error generators, arbitrary order
+    generators_L = rotated_toric_code_logicals(3) # logicals, ordered X type then Z type
+    return generators_S, generators_T, generators_L, Hx, Hz

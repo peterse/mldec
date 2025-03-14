@@ -149,8 +149,8 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 	# among all of the samples for this run.
 	knob_list = []
 	num_samples = hyper_settings.get("num_samples")
-	if dataset_module == "toy_problem":
-		div = len(knob_settings.get('p')) # FIXME: shouldn't be specific to this toy model
+	if dataset_module == "toy_problem" or dataset_module == "toric_code":
+		div = len(knob_settings.get('p')) 
 		assert len(knob_settings.keys()) == 1 # otherwise this 'grid search' needs to be 2D
 		rem = num_samples % div
 		quot = num_samples // div
@@ -160,7 +160,7 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 				knob_list.append({'p': knob_settings.get('p')[i]})
 		# distribute the remainder
 		for j in range(rem):
-			knob_list.append({'p': knob_settings.get('p')[j]})
+			knob_list.append({'p': knob_settings.get('p')[j]})	
 	else:
 		raise NotImplementedError
 
