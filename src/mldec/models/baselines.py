@@ -1,11 +1,16 @@
 import numpy as np 
 import torch
+from pymatching import Matching
+assert int(np.__version__[0]) < 2, "pymatching is not usable with numpy 2"
 
+from mldec.codes import toric_code
+from mldec.utils import bit_tools
 
-class RepetitionCodeLookupTable():
+class LookupTable():
     """Train a lookup table to just return the most likely error given a syndrome, from empirical data."""
     def __init__(self):
         self.table = {} # map {0,1}^(n-1) -> {0,1}^n
+        self.output_len = None
     
     def train_on_histogram(self, X, Y, hist):
         """Train the lookup table on a histogram of (complete) training data.
@@ -19,6 +24,7 @@ class RepetitionCodeLookupTable():
         hist: (2**n, ) histogram of training data counts corresponding to Y
         """
         dct = {}
+        self.output_len = len(Y[0])
         if isinstance(X, torch.Tensor):
             X, Y = X.numpy(), Y.numpy()
         for x, y, p in zip(X, Y, hist):
@@ -34,25 +40,24 @@ class RepetitionCodeLookupTable():
         for x in dct:
             xkey = tuple(x)
             # find the key in dct[xkey] with the highest value
-            y1, y2 = dct[xkey].keys()
-            p1, p2 = dct[xkey][y1], dct[xkey][y2]
-            if p1 == p2:
-                if p1 == 0:
-                    self.table[xkey] = tuple([0]*len(y1))
-                    continue
-                max_key = (y1, y2)[np.random.choice(2)] # probably never happens
-            elif dct[xkey][y1] > dct[xkey][y2]:
-                max_key = y1
-            else:
-                max_key = y2
+
+            yvals = np.array(list(dct[xkey].keys()))
+            probs = [dct[xkey][tuple(y)] for y in yvals]
+            if max(probs) == 0:
+                self.table[xkey] = np.array([0]*self.output_len)
+                continue
+            max_key = yvals[np.argmax(probs)]
             self.table[xkey] = max_key
-        
+
+
     def predict(self, X):
         out = []
         if isinstance(X, torch.Tensor):
             X = X.numpy()
         for x in X:
             ypred = self.table[tuple(x)]
+            if ypred is None:
+                ypred = np.array([0]*self.output_len)
             out.append(ypred)
         return torch.tensor(out)
     
@@ -82,3 +87,43 @@ class RepetitionCodeMinimumWeight():
         for x in X:
             out.append(self.table[tuple(x)])
         return torch.tensor(out)
+
+
+class MinimumWeightPerfectMatching():
+    """Compute MWPM for an input toric syndrome(s)"""
+
+    def __init__(self, L=3):
+        self.L = L
+        self.n = L ** 2
+        self.generators_L = None
+        self.lookup = None
+
+    def make_decoder(self, X, Y):
+        _, _, Hx, Hz = toric_code.rotated_surface_code_stabilizers(self.L)
+        Hx = torch.tensor(Hx)
+        Hz = torch.tensor(Hz)
+        self.matching_x = Matching(Hx)
+        self.matching_z = Matching(Hz)
+        # to decode in the DDD setting we need a lookup table mapping errors to logicals
+        # (or you can implement gaussian elim, whatever).
+        self.lookup = toric_code.build_lst_lookup(self.L, cache=True)
+
+    def predict(self, X):
+        """
+        
+        Args:
+            X: shape (N, n-1) array of syndromes, in concatenated [sigma_x, sigma_z] format
+        """
+        if isinstance(X, torch.Tensor):
+            X = X.numpy()
+        sigma_x = X[:,:(self.n - 1)//2] # detections of Z-type events, i.e. x stabilizers
+        sigma_z = X[:,(self.n - 1)//2:] # detections of X-type events
+
+        # predict the physical errors
+        xerr_pred = self.matching_z.decode_batch(np.array(sigma_z))
+        zerr_pred = self.matching_x.decode_batch(np.array(sigma_x))
+        error_preds = np.concatenate((xerr_pred.reshape(-1, self.n), zerr_pred.reshape(-1, self.n)), axis=1)
+        error_idx = bit_tools.bits_to_ints(error_preds)
+        sigma_logical = self.lookup[error_idx]
+        Ypred = sigma_logical[:, self.n-1:]
+        return torch.tensor(Ypred)

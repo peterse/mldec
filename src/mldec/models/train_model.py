@@ -84,7 +84,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
 
     # build a train set one batch at a time
     # this will accumulate a histogram of the training set over all batches
-    downsampled_train_weights = np.zeros(2**n) 
+    downsampled_train_weights = np.zeros_like(train_weights_np)
     for _ in range(n_batches):
         Xb, Yb, train_weightsb, histb = dataset_module.sample_virtual_XY(train_weights_np, batch_size, n, training_dataset_config)
         Xb, Yb, train_weightsb = Xb.to(device), Yb.to(device), train_weightsb.to(device)
@@ -102,15 +102,23 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
 
 
     # Baseline accuracies
-    lookup_decoder = baselines.RepetitionCodeLookupTable()
+    lookup_decoder = baselines.LookupTable()
+    if config.get("dataset_module") == "toy_problem":
+        minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight()
+    elif config.get("dataset_module") == "toric_code":
+        minimum_weight_decoder = baselines.MinimumWeightPerfectMatching()
+    else:
+        raise ValueError("Unknown dataset module")
+
     lookup_decoder.train_on_histogram(X, Y, downsampled_train_weights)
     lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y, val_weights) 
 
-    minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight()
     minimum_weight_decoder.make_decoder(X, Y)
     minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y, val_weights)
 
-
+    print("lookup acc:", lookup_val_acc)
+    print("minweight acc:", minimum_weight_val_acc)
+    return
     # We will keep the best results (according to val acc) and return only those.
     best_results = None
     for epoch in range(max_epochs):

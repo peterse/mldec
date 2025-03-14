@@ -56,3 +56,16 @@ def binarr(m):
     """
     d = idxsort_by_weight(m)
     return (((d[:, None] & (1 << np.arange(m, dtype=int)))) > 0).astype(int)[:, ::-1]
+
+
+def bits_to_ints(bits):
+    # convert a boolean/integer array of ints to its integer value 
+    m, n = bits.shape # each row is abinary string
+    a = 2**np.arange(n)[::-1]
+    nums = bits @ a # integer
+    return nums
+
+
+def ints_to_bits(nums, n):
+    # convert an integer array to its binary repr
+    return (((nums[:,None] & (1 << np.arange(n)))) > 0).astype(bool)

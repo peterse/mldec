@@ -3,6 +3,7 @@ import numpy as np
 
 import itertools
 from mldec.codes import toric_code, code_utils
+from mldec.utils import bit_tools
 from mldec.datasets import tools
 import torch
 
@@ -16,7 +17,7 @@ def config_to_fname(n, config, only_good_examples=False):
     only_good = ""
     if only_good_examples:
         only_good = "_only_good"
-    return f"toric_code_n{n}_p{config['p']}.npy"
+    return f"toric_code_n{n}_vardepol_p{config['p']}_var{config['var']}.pt"
 
 
 def try_to_load_otherwise_make(fname):
@@ -26,9 +27,9 @@ def try_to_load_otherwise_make(fname):
         os.makedirs(CACHE)
     path = os.path.join(CACHE, fname)
     if os.path.exists(path):
-        out = np.load(path)
-        X = np.load(os.path.join(CACHE, "X.npy"))
-        Y = np.load(os.path.join(CACHE, "Y.npy"))
+        out = torch.load(path)
+        X = torch.load(os.path.join(CACHE, "X.pt"))
+        Y = torch.load(os.path.join(CACHE, "Y.pt"))
         return X, Y, out
     return None
 
@@ -36,9 +37,9 @@ def try_to_load_otherwise_make(fname):
 def cache_data(X, Y, probs, fname):
     global CACHE
     path = os.path.join(CACHE, fname)
-    np.save(path, probs)
-    np.save(os.path.join(CACHE, "X.npy"), X)
-    np.save(os.path.join(CACHE, "Y.npy"), Y)
+    torch.save(probs, path)
+    torch.save(X, os.path.join(CACHE, "X.pt"))
+    torch.save(Y, os.path.join(CACHE, "Y.pt"))
 
 
 def uniform_over_good_examples(n, config, cache=True):
@@ -119,6 +120,7 @@ def create_dataset_training(n, config, cache=True):
                 p_TL[i_sigma, j_logical] += p_err
                 # FIXME: this would be way faster (4x?) if i vectorized, but i'm caching everything anyways.
                 # err_prism[i_sigma, j_logical, :] = error_symplectic
+
     # FIXME: more efficient with vectorization
     # generate the shape (2**(n-1), 2**2) array of coset probabilities
     # p_TL = np.apply_along_axis(noise_model, 1, err_prism.reshape(-1, 2*n), n).reshape(2**(n-1), 2**2)
@@ -126,6 +128,11 @@ def create_dataset_training(n, config, cache=True):
     X = X.reshape(-1, n-1)
     Y = Y.reshape(-1, 2)
     p_TL = p_TL.reshape(-1)
+
+    X = torch.tensor(X, dtype=torch.float32)
+    Y = torch.tensor(Y, dtype=torch.float32)
+    p_TL = torch.tensor(p_TL, dtype=torch.float32)
+
     if cache:
         cache_data(X, Y, p_TL, target)
     return X, Y, p_TL
@@ -178,13 +185,13 @@ def sample_virtual_XY(probs, m, n, dataset_config, cache=True):
     return Xb_tensor, Yb_tensor, weightsb, hist
 
 
-
 def make_variance_noise_model(n, config):
     p = config.get('p')
     # alpha = config.get('alpha')
     var = config.get('var')
     np.random.seed(222) # just for reproducibility
     p_samp = np.random.normal(p, var, size=n)
+
     def variance_noise_model(err, n):
         """
         After sampling some vector (p_1, ..., p_n) with variance var, each qubit has a different 
@@ -201,3 +208,4 @@ def make_variance_noise_model(n, config):
         return out
     
     return variance_noise_model
+

@@ -36,6 +36,18 @@ def main(config):
 			# 'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
 			'alpha': dataset_config.get('alpha'),
 		}
+	elif dataset_module == "toric_code":
+		n = config['n']
+		dataset_config = {
+			'p': 0.05,
+			'var': 0.03,
+			"sos_eos": config.get("sos_eos", None),
+		}
+		knob_settings = {
+			# 'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
+				# there is nothing to be gained by putting in artificial variance.
+			# 'var': dataset_config.get('var'), # WARNING we will actually want the knob to set variance to zero?
+		}
 	else:
 		raise ValueError("Unknown dataset module")
 	
@@ -64,12 +76,11 @@ def main(config):
 		if model_type != model_type_from_yaml:
 			raise ValueError(f"Model type {model_type} from args is different from model type {model_type_from_yaml} in hyperparameter config file")
 		
+		# Load in the tuning deck parameters
 		knob_settings = yaml["knob_settings"]
 		tune_model.validate_knob_settings(config, knob_settings, dataset_config, logger)
-
 		hyper_config = yaml["hyperparameters"]
 		tune_model.validate_tuning_parameters(config, hyper_config, logger)
-		
 		hyper_settings = yaml["settings"]
 		tune_model.tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config, knob_settings)
 	else:
@@ -86,31 +97,40 @@ if __name__ == "__main__":
 	# only_good_examples = uniform distribution over good examples
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 
+	# # # important stuff # # # # # # # # # 
 	only_good_examples = False
-	mode = "tune" # options: train, tune
-	n = 8
-	input_dim = n - 1
-	MODEL = "cnn"
+	mode = "train" # options: train, tune
+	dataset_module = "toric_code"
+	MODEL = "transformer"
+	# # # # # # # ## # # # # # # # # # # # # 
+
+	if dataset_module == "toy_problem":
+		n = 8
+		input_dim = n - 1
+		output_dim = n
+	elif dataset_module == "toric_code":
+		n = 9
+		input_dim = n - 1
+		output_dim = 2
+
 	config = {
 		"model" : MODEL,
-		"hyper_config_path": f"{MODEL}_toyproblem.yaml",
+		"hyper_config_path": f"{MODEL}_{dataset_module}.yaml",
 		"device": "cpu", 
-		# Dataset config
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_train": 100,
-		"dataset_module": "toy_problem",
+		"n_train": 500,
+		"dataset_module": dataset_module,
 		# Training config: 
 		"max_epochs": 10000,
-		# "batch_size": 250, # !OVERWRITE
 		"patience": 4000,  
-		# "lr": 0.003, # !OVERWRITE
 		"opt": "adam",
 		"mode": mode,
-		# fixed model config
 		"input_dim": input_dim,
-		"output_dim": n,
-		# "dropout": 0.05, # !OVERWRITE
+		"output_dim": output_dim,
+		"lr": 0.003, # !OVERWRITE
+		"batch_size": 250, # !OVERWRITE
+		"dropout": 0.05, # !OVERWRITE
 	}
 
 	if config.get("model") == "ffnn":
@@ -131,11 +151,11 @@ if __name__ == "__main__":
 		config["sos_eos"] = (0, 0)
 		model_config = {
 			"model": "transformer",
-			# "d_model": 16, # !OVERWRITE
-			# "nhead": 4, # !OVERWRITE
-			# "num_encoder_layers": 2, # !OVERWRITE
-			# "num_decoder_layers": 2, # !OVERWRITE
-			# "dim_feedforward": 8, # !OVERWRITE
+			"d_model": 16, # !OVERWRITE
+			"nhead": 4, # !OVERWRITE
+			"num_encoder_layers": 2, # !OVERWRITE
+			"num_decoder_layers": 2, # !OVERWRITE
+			"dim_feedforward": 8, # !OVERWRITE
 		}
 
 	config.update(model_config)
