@@ -13,6 +13,6 @@ knob_settings:
   p: [0.05]
 
 settings:
-  total_cpus: 100
+  total_cpus: 2
   num_samples: 2
   total_gpus: 0

@@ -27,10 +27,10 @@ def try_to_load_otherwise_make(fname):
         os.makedirs(CACHE)
     path = os.path.join(CACHE, fname)
     if os.path.exists(path):
-        out = torch.load(path)
+        probs = torch.load(path)
         X = torch.load(os.path.join(CACHE, "X.pt"))
         Y = torch.load(os.path.join(CACHE, "Y.pt"))
-        return X, Y, out
+        return X, Y, probs
     return None
 
 
@@ -62,6 +62,8 @@ def uniform_over_good_examples(n, config, cache=True):
     probs[np.arange(p_TL.shape[0]), max_indices] = 1
     probs = probs / probs.sum()
     probs = probs.reshape(-1)
+    X, Y, probs = torch.tensor(X, dtype=torch.float32), torch.tensor(Y, dtype=torch.float32), torch.tensor(probs, dtype=torch.float32)
+    # note that sos/eos is taken care of by the training set
     return X, Y, probs
 
 
@@ -80,11 +82,17 @@ def create_dataset_training(n, config, cache=True):
         raise NotImplementedError("Only L=3 is implemented for now.")
     L = 3
 
+    sos_eos = config.get("sos_eos")
     if cache:
         target = config_to_fname(n, config)
         out = try_to_load_otherwise_make(target)
         if out is not None:
-            return out
+            X, Y, p_TL = out
+            # we don't save datasets with eos/sos, that's a waste of time. just reoload them
+            if sos_eos:
+                sos, eos = sos_eos
+                Y = torch.cat([sos*torch.ones((Y.shape[0], 1)), Y, eos*torch.ones((Y.shape[0], 1))], axis=1)
+            return X, Y, p_TL
         
     # We start by building the prism. At the same time, we keep track of the output
     # set of syndromes and logicals, in the order that their wieghts are computed.
@@ -135,6 +143,10 @@ def create_dataset_training(n, config, cache=True):
 
     if cache:
         cache_data(X, Y, p_TL, target)
+    # only add sos/eos after saving
+    if sos_eos:
+        sos, eos = sos_eos
+        Y = torch.cat([sos*torch.ones((Y.shape[0], 1)), Y, eos*torch.ones((Y.shape[0], 1))], axis=1)
     return X, Y, p_TL
 
 

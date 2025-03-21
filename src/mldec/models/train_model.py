@@ -46,14 +46,15 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     log_print(f"Training model {config.get('model')} with {tot_params} total parameters, {trainable_params} trainable.")
     
     # TURNING THE KNOB: We will use (potentially) different dataset configs for training vs. validation
-    validation_dataset_config = copy.deepcopy(validation_dataset_config)
+    # validation_dataset_config = copy.deepcopy(validation_dataset_config)
     training_dataset_config = {}
     for k, v in validation_dataset_config.items():
         if knob_settings.get(k) is not None:
             training_dataset_config[k] = knob_settings[k] # overwrite the validation dataset using knob settings
         else:
             training_dataset_config[k] = v # use the same as the validation set
-
+    print(training_dataset_config)
+    print(validation_dataset_config)
     # dump the validation and training dataset configs
     log_print(f"Validation dataset config:")
     for k, v in validation_dataset_config.items():
@@ -94,12 +95,10 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
 
     log_print("Train weights:")
     log_print(downsampled_train_weights)
-
     log_print("Test val_weights:")
     log_print(val_weights)
 
     # we want two things: a lookup table for the training set, and baseline accuracy for training/validation
-
 
     # Baseline accuracies
     lookup_decoder = baselines.LookupTable()
@@ -109,16 +108,18 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         minimum_weight_decoder = baselines.MinimumWeightPerfectMatching()
     else:
         raise ValueError("Unknown dataset module")
+    # we need to strip the EOS/SOS from the training data, if applicable.
+    if validation_dataset_config.get("sos_eos") is not None:
+        Y_no_sos_eos = torch.clone(Y)[:, 1:-1]
+    else:
+        Y_no_sos_eos = torch.clone(Y)
+    lookup_decoder.train_on_histogram(X, Y_no_sos_eos, downsampled_train_weights)
+    lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y_no_sos_eos, val_weights)
+    log_print("lookup acc: {}".format(lookup_val_acc))
+    minimum_weight_decoder.make_decoder(X, Y_no_sos_eos)
+    minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y_no_sos_eos, val_weights)
+    log_print("minweight acc: {}".format(minimum_weight_val_acc))
 
-    lookup_decoder.train_on_histogram(X, Y, downsampled_train_weights)
-    lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y, val_weights) 
-
-    minimum_weight_decoder.make_decoder(X, Y)
-    minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y, val_weights)
-
-    print("lookup acc:", lookup_val_acc)
-    print("minweight acc:", minimum_weight_val_acc)
-    return
     # We will keep the best results (according to val acc) and return only those.
     best_results = None
     for epoch in range(max_epochs):

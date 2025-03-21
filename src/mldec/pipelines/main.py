@@ -98,10 +98,10 @@ if __name__ == "__main__":
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 
 	# # # important stuff # # # # # # # # # 
-	only_good_examples = False
-	mode = "train" # options: train, tune
-	dataset_module = "toric_code"
-	MODEL = "transformer"
+	only_good_examples = True
+	mode = "tune" # options: train, tune
+	dataset_module = "toric_code" # options: toy_problem, toric_code
+	MODEL = "transformer" # options: cnn, transformer
 	# # # # # # # ## # # # # # # # # # # # # 
 
 	if dataset_module == "toy_problem":
@@ -112,25 +112,25 @@ if __name__ == "__main__":
 		n = 9
 		input_dim = n - 1
 		output_dim = 2
-
+	only_good_str = "_only_good" if only_good_examples else ""
 	config = {
 		"model" : MODEL,
-		"hyper_config_path": f"{MODEL}_{dataset_module}.yaml",
+		"hyper_config_path": f"{MODEL}_{dataset_module}{only_good_str}.yaml",
 		"device": "cpu", 
 		"n": n,
 		"only_good_examples": only_good_examples, 
 		"n_train": 500,
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 10000,
+		"max_epochs": 10,
 		"patience": 4000,  
 		"opt": "adam",
 		"mode": mode,
 		"input_dim": input_dim,
 		"output_dim": output_dim,
-		"lr": 0.003, # !OVERWRITE
-		"batch_size": 250, # !OVERWRITE
-		"dropout": 0.05, # !OVERWRITE
+		# "lr": 0.003, # !OVERWRITE
+		# "batch_size": 250, # !OVERWRITE
+		# "dropout": 0.05, # !OVERWRITE
 	}
 
 	if config.get("model") == "ffnn":
@@ -151,11 +151,11 @@ if __name__ == "__main__":
 		config["sos_eos"] = (0, 0)
 		model_config = {
 			"model": "transformer",
-			"d_model": 16, # !OVERWRITE
-			"nhead": 4, # !OVERWRITE
-			"num_encoder_layers": 2, # !OVERWRITE
-			"num_decoder_layers": 2, # !OVERWRITE
-			"dim_feedforward": 8, # !OVERWRITE
+			# "d_model": 16, # !OVERWRITE
+			# "nhead": 4, # !OVERWRITE
+			# "num_encoder_layers": 2, # !OVERWRITE
+			# "num_decoder_layers": 2, # !OVERWRITE
+			# "dim_feedforward": 8, # !OVERWRITE
 		}
 
 	config.update(model_config)

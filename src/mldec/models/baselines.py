@@ -124,6 +124,7 @@ class MinimumWeightPerfectMatching():
         zerr_pred = self.matching_x.decode_batch(np.array(sigma_x))
         error_preds = np.concatenate((xerr_pred.reshape(-1, self.n), zerr_pred.reshape(-1, self.n)), axis=1)
         error_idx = bit_tools.bits_to_ints(error_preds)
+        # get the logical operator such that \ell*S contains this error
         sigma_logical = self.lookup[error_idx]
         Ypred = sigma_logical[:, self.n-1:]
         return torch.tensor(Ypred)
