@@ -53,8 +53,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             training_dataset_config[k] = knob_settings[k] # overwrite the validation dataset using knob settings
         else:
             training_dataset_config[k] = v # use the same as the validation set
-    print(training_dataset_config)
-    print(validation_dataset_config)
     # dump the validation and training dataset configs
     log_print(f"Validation dataset config:")
     for k, v in validation_dataset_config.items():

@@ -1,18 +1,19 @@
 model_type: transformer
 hyperparameters:
-  lr: [0.0001, 0.0005, 0.001, 0.002, 0.006]
-  d_model: [8, 12, 16]
+  lr: [0.0005, 0.0008, 0.001, 0.002, 0.003]
+  d_model: [16, 20, 24]
   dropout: [0.1, 0.15]
   num_encoder_layers: [1, 2, 3]
-  num_decoder_layers: [1, 2]
+  num_decoder_layers: [1]
   nhead: [2, 4]
-  dim_feedforward: [4, 8, 16]
+  dim_feedforward: [4]
   batch_size: [256]
 
 knob_settings:
-  p: [0.05]
+  beta: [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
+
 
 settings:
   total_cpus: 100
-  num_samples: 100
+  num_samples: 10
   total_gpus: 0

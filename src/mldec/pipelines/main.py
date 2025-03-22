@@ -113,16 +113,17 @@ if __name__ == "__main__":
 		input_dim = n - 1
 		output_dim = 2
 	only_good_str = "_only_good" if only_good_examples else ""
+
 	config = {
 		"model" : MODEL,
 		"hyper_config_path": f"{MODEL}_{dataset_module}{only_good_str}.yaml",
 		"device": "cpu", 
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_train": 500,
+		"n_train": 2000,
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 10,
+		"max_epochs": 10000,
 		"patience": 4000,  
 		"opt": "adam",
 		"mode": mode,
