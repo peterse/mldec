@@ -17,7 +17,7 @@ def config_to_fname(n, config, only_good_examples=False):
     only_good = ""
     if only_good_examples:
         only_good = "_only_good"
-    return f"toric_code_n{n}_vardepol_p{config['p']}_var{config['var']}.pt"
+    return f"toric_code_n{n}_vardepol_p{config['p']}_var{config['var']}_beta{config['beta']}.pt"
 
 
 def try_to_load_otherwise_make(fname):
@@ -198,11 +198,17 @@ def sample_virtual_XY(probs, m, n, dataset_config, cache=True):
 
 
 def make_variance_noise_model(n, config):
+    """
+    make a set of probabilities with mean p, variance var, and then rescale it by beta.
+    """
     p = config.get('p')
     # alpha = config.get('alpha')
     var = config.get('var')
+    beta = config.get('beta')
     np.random.seed(222) # just for reproducibility
     p_samp = np.random.normal(p, var, size=n)
+    p_samp = p_samp * beta
+
 
     def variance_noise_model(err, n):
         """

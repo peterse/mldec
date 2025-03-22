@@ -123,7 +123,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     # We will keep the best results (according to val acc) and return only those.
     best_results = None
     for epoch in range(max_epochs):
-
         train_loss = 0        
         for i in range(n_batches):
             Xb, Yb, weightsb = batched_data[i]
