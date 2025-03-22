@@ -30,8 +30,8 @@ def main(config):
 		# train mode:
 		# anything not set in `knob_settings` will be defaulted to the `dataset_config`.
 		# tune mode:
-		# Anything not set in this can be written with knob_settings in the hyperparameter config.
-		# anything set in this that is attempted to be overwritten by the hyperparameter config will raise an error.
+		# Anything not set in this can be written with knob_settings in the hyperparameter config YAML file.
+		# anything set in this that is attempted to be overwritten by the hyperparameter config yaml will raise an error.
 		knob_settings = {
 			# 'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
 			'alpha': dataset_config.get('alpha'),
@@ -44,9 +44,8 @@ def main(config):
 			"sos_eos": config.get("sos_eos", None),
 		}
 		knob_settings = {
-			# 'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
-				# there is nothing to be gained by putting in artificial variance.
-			# 'var': dataset_config.get('var'), # WARNING we will actually want the knob to set variance to zero?
+			'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
+			'var': dataset_config.get('var'), # !OVERWRITE
 		}
 	else:
 		raise ValueError("Unknown dataset module")
