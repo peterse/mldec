@@ -12,12 +12,15 @@ abspath = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(abspath, "cache")
 
 def config_to_fname(n, config, only_good_examples=False):
-    """Caching utility."""
+    """Caching utility.
+
+    warning: don't use config values with more than 3 significant digits.
+    """
     ### FIXME: no more alpha?
     only_good = ""
     if only_good_examples:
         only_good = "_only_good"
-    return f"toric_code_n{n}_vardepol_p{config['p']}_var{config['var']}_beta{config['beta']}.pt"
+    return f"toric_code_n{n}_vardepol_p{config['p']:4.3f}_var{config['var']:4.3f}_beta{config['beta']:4.3f}.pt"
 
 
 def try_to_load_otherwise_make(fname):
@@ -205,10 +208,26 @@ def make_variance_noise_model(n, config):
     # alpha = config.get('alpha')
     var = config.get('var')
     beta = config.get('beta')
-    np.random.seed(222) # just for reproducibility
-    p_samp = np.random.normal(p, var, size=n)
-    p_samp = p_samp * beta
+    # Explanation:
+    # we want to train many models on the same underlying error model so that the 
+    # variance in performance is due to model randomness rather than some weird
+    # counterfactual where we compare devices with different noise models.
+    # BUT we cannot use np.seed, e.g.
+    #    np.random.seed(222)
+    #   p_samp = np.random.normal(p, var, size=n)
+    # the problem is that this will poison our training set sampling downstream! 
+    # this function gets called in a training set sampler, which means we pre-seed
+    # a random sampling of training examples from a noise model which is itself
+    # nonrandom. The solution is to generate a specific noise model with the 
+    # properties I wanted, and then fix that without setting any seed.
 
+    if p == 0.05 and var == 0.03:
+        # below is the output of the following code:
+        # np.random.seed(222)
+        # p_samp = np.random.normal(p, var, size=n)
+        p_samp = np.array([0.10890275, 0.05827309, 0.06375975, 0.08003794, 0.02708494,
+       0.07165783, 0.02283591, 0.0800562 , 0.03437773])
+    p_samp = p_samp * beta
 
     def variance_noise_model(err, n):
         """

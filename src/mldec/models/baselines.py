@@ -98,7 +98,7 @@ class MinimumWeightPerfectMatching():
         self.generators_L = None
         self.lookup = None
 
-    def make_decoder(self, X, Y):
+    def make_decoder(self, X, Y, weights=None):
         _, _, Hx, Hz = toric_code.rotated_surface_code_stabilizers(self.L)
         Hx = torch.tensor(Hx)
         Hz = torch.tensor(Hz)
