@@ -98,12 +98,15 @@ class MinimumWeightPerfectMatching():
         self.generators_L = None
         self.lookup = None
 
-    def make_decoder(self, X, Y, weights=None):
+    def make_decoder(self, X, Y, error_probs=None):
         _, _, Hx, Hz = toric_code.rotated_surface_code_stabilizers(self.L)
         Hx = torch.tensor(Hx)
         Hz = torch.tensor(Hz)
-        self.matching_x = Matching(Hx)
-        self.matching_z = Matching(Hz)
+        weights = None
+        if error_probs is not None:
+            weights = np.log( (1- error_probs) / error_probs)
+        self.matching_x = Matching(Hx, weights=weights)
+        self.matching_z = Matching(Hz, weights=weights)
         # to decode in the DDD setting we need a lookup table mapping errors to logicals
         # (or you can implement gaussian elim, whatever).
         self.lookup = toric_code.build_lst_lookup(self.L, cache=True)

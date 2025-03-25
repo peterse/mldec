@@ -200,10 +200,23 @@ def sample_virtual_XY(probs, m, n, dataset_config, cache=True):
     return Xb_tensor, Yb_tensor, weightsb, hist
 
 
-def make_variance_noise_model(n, config):
+def make_variance_noise_model(n, config, return_probs=False):
     """
-    make a set of probabilities with mean p, variance var, and then rescale it by beta.
+    make a set of probabilities {p_i} with mean p, variance var, and then rescale it by beta.
+
+    For a particular choice of p, var this will deterministically produce error probabilities
+    for each qubit. This functionality is intended for running many training experiments on 
+    the same underlying 'device'.
+
+    Args:
+        n: number of qubits
+        config: dictionary with keys 
+            'p': average probability
+            'var': variance of errors 
+            'beta': scaling factor for the entire vector
+        return_probs: if True, return the vector of probabilities instead of the noise model.
     """
+    assert n == 9 
     p = config.get('p')
     # alpha = config.get('alpha')
     var = config.get('var')
@@ -228,6 +241,8 @@ def make_variance_noise_model(n, config):
         p_samp = np.array([0.10890275, 0.05827309, 0.06375975, 0.08003794, 0.02708494,
        0.07165783, 0.02283591, 0.0800562 , 0.03437773])
     p_samp = p_samp * beta
+    if return_probs:
+        return p_samp
 
     def variance_noise_model(err, n):
         """
