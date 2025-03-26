@@ -40,9 +40,9 @@ def try_to_load_otherwise_make(fname):
 def cache_data(X, Y, probs, fname):
     global CACHE
     path = os.path.join(CACHE, fname)
-    torch.save(probs, path)
-    torch.save(X, os.path.join(CACHE, "X.pt"))
-    torch.save(Y, os.path.join(CACHE, "Y.pt"))
+    torch.save(probs, path, _use_new_zipfile_serialization=False)
+    torch.save(X, os.path.join(CACHE, "X.pt"), _use_new_zipfile_serialization=False)
+    torch.save(Y, os.path.join(CACHE, "Y.pt"), _use_new_zipfile_serialization=False)
 
 
 def uniform_over_good_examples(n, config, cache=True):
@@ -220,15 +220,18 @@ def make_variance_noise_model(n, config):
     # a random sampling of training examples from a noise model which is itself
     # nonrandom. The solution is to generate a specific noise model with the 
     # properties I wanted, and then fix that without setting any seed.
-
-    if p == 0.05 and var == 0.03:
+    if var == 0:
+        p_samp = p * np.ones(n)
+    elif (p == 0.05 and var == 0.03):
         # below is the output of the following code:
         # np.random.seed(222)
         # p_samp = np.random.normal(p, var, size=n)
         p_samp = np.array([0.10890275, 0.05827309, 0.06375975, 0.08003794, 0.02708494,
        0.07165783, 0.02283591, 0.0800562 , 0.03437773])
+    else:
+        raise NotImplementedError("sample first, then hardcode.")
+    
     p_samp = p_samp * beta
-
     def variance_noise_model(err, n):
         """
         After sampling some vector (p_1, ..., p_n) with variance var, each qubit has a different 

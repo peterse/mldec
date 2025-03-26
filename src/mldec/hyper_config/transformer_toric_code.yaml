@@ -6,14 +6,13 @@ hyperparameters:
   num_encoder_layers: [1, 2, 3]
   num_decoder_layers: [1]
   nhead: [2, 4]
-  dim_feedforward: [4]
+  dim_feedforward: [4, 8]
   batch_size: [256]
 
 knob_settings:
-  beta: [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
-
+  beta: [3.25, 3.5, 3.75, 4, 4.25, 4.5]
 
 settings:
-  total_cpus: 100
-  num_samples: 10
+  total_cpus: 150
+  num_samples: 600
   total_gpus: 0
