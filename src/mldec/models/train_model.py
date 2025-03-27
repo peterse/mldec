@@ -53,8 +53,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             training_dataset_config[k] = knob_settings[k] # overwrite the validation dataset using knob settings
         else:
             training_dataset_config[k] = v # use the same as the validation set
-    print(training_dataset_config)
-    print(validation_dataset_config)
     # dump the validation and training dataset configs
     log_print(f"Validation dataset config:")
     for k, v in validation_dataset_config.items():
@@ -97,6 +95,9 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     log_print(downsampled_train_weights)
     log_print("Test val_weights:")
     log_print(val_weights)
+    if config.get("dataset_module") == "toric_code":
+        log_print("Probability of no error in training error model:")
+        log_print(toric_code_data.make_variance_noise_model(n, training_dataset_config)(np.zeros(2*n), n))
 
     # we want two things: a lookup table for the training set, and baseline accuracy for training/validation
 

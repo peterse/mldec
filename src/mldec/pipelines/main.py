@@ -17,6 +17,7 @@ def main(config):
 	# underlying data distribution. This virtual sampling is done
 	# just-in-time.
 	dataset_module = config.get("dataset_module")
+	toric_exp = "var" # options: var, novar
 	if dataset_module == "toy_problem":
 		n = config['n']
 		# this dataset describes what data the model will be evaluated on.
@@ -42,10 +43,7 @@ def main(config):
 			'p': 0.05,
 			'var': 0.03,
 			"sos_eos": config.get("sos_eos", None),
-		}
-		knob_settings = {
-			'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
-			'var': dataset_config.get('var'), # !OVERWRITE
+			"beta": 1
 		}
 	else:
 		raise ValueError("Unknown dataset module")
@@ -78,6 +76,12 @@ def main(config):
 		# Load in the tuning deck parameters
 		knob_settings = yaml["knob_settings"]
 		tune_model.validate_knob_settings(config, knob_settings, dataset_config, logger)
+		if dataset_module == "toric_code" and toric_exp == "novar":
+			print("NOVAR EXPERIMENT")
+			knob_settings["var"] = 0
+		elif dataset_module == "toric_code" and toric_exp == "var":
+			print("VAR EXPERIMENT")
+			knob_settings["var"] = dataset_config.get("var")
 		hyper_config = yaml["hyperparameters"]
 		tune_model.validate_tuning_parameters(config, hyper_config, logger)
 		hyper_settings = yaml["settings"]
@@ -97,7 +101,7 @@ if __name__ == "__main__":
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 
 	# # # important stuff # # # # # # # # # 
-	only_good_examples = True
+	only_good_examples = False
 	mode = "tune" # options: train, tune
 	dataset_module = "toric_code" # options: toy_problem, toric_code
 	MODEL = "transformer" # options: cnn, transformer
@@ -112,17 +116,18 @@ if __name__ == "__main__":
 		input_dim = n - 1
 		output_dim = 2
 	only_good_str = "_only_good" if only_good_examples else ""
+
 	config = {
 		"model" : MODEL,
 		"hyper_config_path": f"{MODEL}_{dataset_module}{only_good_str}.yaml",
 		"device": "cpu", 
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_train": 500,
+		"n_train": 10000,
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 10,
-		"patience": 4000,  
+		"max_epochs": 6000,
+		"patience": 2000,  
 		"opt": "adam",
 		"mode": mode,
 		"input_dim": input_dim,

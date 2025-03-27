@@ -1,4 +1,6 @@
-numpy
+numpy==1.26.4
 torch
 pandas
 pyyaml
+pymatching
+stim

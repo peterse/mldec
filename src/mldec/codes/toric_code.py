@@ -155,7 +155,7 @@ def build_lst_lookup(L, cache=True):
         raise NotImplementedError("Only L=3 is implemented for now.")
     n = 9
     if cache:
-        target = "fL{L}_LST.npy"
+        target = f"L{L}_LST.npy"
         path = os.path.join(CACHE, target)
         if os.path.exists(path):
             out = np.load(path)

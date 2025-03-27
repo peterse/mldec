@@ -163,16 +163,16 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 			knob_list.append({'p': knob_settings.get('p')[j]})	
 	elif dataset_module == "toric_code":
 		div = len(knob_settings.get('beta')) 
-		assert len(knob_settings.keys()) == 1 # otherwise this 'grid search' needs to be 2D
+		assert len(knob_settings.keys()) == 2 # need to specify var, and list of betas
 		rem = num_samples % div
 		quot = num_samples // div
 		for i in range(div):
 			# we will get about `div` samples for each knob setting
 			for _ in range(quot):
-				knob_list.append({'beta': knob_settings.get('beta')[i]})
+				knob_list.append({'beta': knob_settings.get('beta')[i], 'var': knob_settings.get('var')})
 		# distribute the remainder
 		for j in range(rem):
-			knob_list.append({'beta': knob_settings.get('beta')[j]})			
+			knob_list.append({'beta': knob_settings.get('beta')[j], 'var': knob_settings.get('var')})			
 	else:
 		raise NotImplementedError
 
@@ -192,6 +192,7 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 		logger_name = f"thread_{thread_id}" # we cannot serialize a logger effectively, so we pass around its name
 		thread_pkg = {"thread_id": thread_id, "tune_path": tune_path, "logger_name": logger_name}
 		package = (hyperparameter_slice, config, dataset_module, dataset_config, knob_slice, thread_pkg)
+		logger.info(package)
 		package_list.append(package)
 		time.sleep(0.1) # to ensure unique timestamps
 
