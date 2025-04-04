@@ -25,8 +25,8 @@ if __name__ == '__main__':
 
     # Graph settings
     # num_node_features = 5
-    power = 2
-    m_nearest_nodes = None
+    # power = 2
+    # m_nearest_nodes = None
 
 
     cuda = False

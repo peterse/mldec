@@ -6,6 +6,7 @@ from mldec.utils import evaluation, training
 from mldec.models import initialize, baselines
 from mldec.pipelines import loggingx
 
+
 def train_model(model_wrapper, dataset_module, config, validation_dataset_config, knob_settings, manager=None):
 
     # de-serializing the dataset module
@@ -40,9 +41,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
 
     tot_params, trainable_params = initialize.count_parameters(model_wrapper.model)
     log_print(f"Training model {config.get('model')} with {tot_params} total parameters, {trainable_params} trainable.")
-    
-
-
 
 
     # TURNING THE KNOB: We will use (potentially) different dataset configs for training vs. validation
@@ -60,22 +58,45 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     log_print(f"Training dataset config:")
     for k, v in training_dataset_config.items():
         log_print(f"  {k}: {v}")
-    # Virtual TRAINING: We don't actually need datasets to train the model. Instead,
-    # we sample data ccording to the known probability distribution, and then reweight the loss
-    # according to a histogram of that sample. The loss re-weighting is O(2^nbits) so this is
-    # more efficient whenever that number is much smaller than the expected amount of training data.
-    # TODO: optimization for bandwidth; maybe pre-load large chunks of data since its only a few KB
-    # per batch
+
 
     n_batches = n_train // batch_size
     # compute the probability weights corresponding to the p for this distribtion
-    X, Y, val_weights = dataset_module.create_dataset_training(n, validation_dataset_config)
+    X_val, Y_val = dataset_module.sample_dataset(n, validation_dataset_config)
     # compute the probability weights after 'turning the knob' on the p
-    _, _, train_weights = dataset_module.create_dataset_training(n, training_dataset_config)
+    X_tr, Y_tr = dataset_module.sample_dataset(n, training_dataset_config)
     # copy the weights
-    train_weights_np = train_weights.numpy()
-    val_weights = torch.tensor(val_weights, dtype=torch.float32)  # true distribution of bitstrings  
-    X, Y, val_weights = X.to(device), Y.to(device), val_weights.to(device)
+    X_val, Y_val = X_val.to(device), Y_val.to(device)
+    X_tr, Y_tr = X_tr.to(device), Y_tr.to(device)
+
+
+
+
+
+
+
+
+    for data in loader:
+        model.training_step(data, optimizer, criterion)
+
+
+
+    #   def train_with_buffer(graph_list, shuffle=True):
+    #         '''Trains the network with data from the buffer.'''
+    #         loader = DataLoader(graph_list, batch_size=batch_size, shuffle=shuffle)
+    #         total_loss = 0.
+    #         correct_predictions = 0
+    #         model.train()
+
+
+
+
+    #             total_loss += loss.item() * data.num_graphs
+
+    #         return correct_predictions, total_loss
+        
+
+
     batched_data = []
 
     # build a train set one batch at a time
@@ -90,11 +111,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
 
     log_print("Train weights:")
     log_print(downsampled_train_weights)
-    log_print("Test val_weights:")
-    log_print(val_weights)
-    if config.get("dataset_module") == "toric_code":
-        log_print("Probability of no error in training error model:")
-        log_print(toric_code_data.make_variance_noise_model(n, training_dataset_config)(np.zeros(2*n), n))
 
     # we want two things: a lookup table for the training set, and baseline accuracy for training/validation
 
@@ -106,21 +122,20 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         minimum_weight_decoder = baselines.MinimumWeightPerfectMatching()
     else:
         raise ValueError("Unknown dataset module")
-    # we need to strip the EOS/SOS from the training data, if applicable.
-    if validation_dataset_config.get("sos_eos") is not None:
-        Y_no_sos_eos = torch.clone(Y)[:, 1:-1]
-    else:
-        Y_no_sos_eos = torch.clone(Y)
-    lookup_decoder.train_on_histogram(X, Y_no_sos_eos, downsampled_train_weights)
-    lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y_no_sos_eos, val_weights)
-    log_print("lookup acc: {}".format(lookup_val_acc))
-    minimum_weight_decoder.make_decoder(X, Y_no_sos_eos)
-    minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y_no_sos_eos, val_weights)
-    log_print("minweight acc: {}".format(minimum_weight_val_acc))
+
+    # TODO: BASELINES
+    # lookup_decoder.train_on_histogram(X, Y_no_sos_eos, downsampled_train_weights)
+    # lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y_no_sos_eos, val_weights)
+    # log_print("lookup acc: {}".format(lookup_val_acc))
+    # minimum_weight_decoder.make_decoder(X, Y_no_sos_eos)
+    # minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y_no_sos_eos, val_weights)
+    # log_print("minweight acc: {}".format(minimum_weight_val_acc))
 
     # We will keep the best results (according to val acc) and return only those.
     best_results = None
     for epoch in range(max_epochs):
+
+
         train_loss = 0        
         for i in range(n_batches):
             Xb, Yb, weightsb = batched_data[i]
@@ -130,8 +145,21 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         train_loss = train_loss / n_batches
 
 
-        # if config.get('opt') == 'sgd':
-        #     scheduler.step(val_acc)
+        # forward pass:
+        correct_count, total_iteration_loss = train_with_buffer(data_buffer)
+        sample_count = len(data_buffer)
+        # update the data buffer (either replace or append batches)
+        if replacements_per_iteration > 0:
+            data_buffer = update_buffer(data_buffer, replacements_per_iteration)
+        gc.collect()
+        # Store loss and accuracy from training iteration
+        train_loss = total_iteration_loss / sample_count
+        train_acc = correct_count / sample_count
+        # If validation, test on validation batch
+
+
+
+        
 
         # We only do accuracy and loss checks every 10 epochs
         if (epoch % 10) == 0:
@@ -140,36 +168,44 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             model_wrapper.model.eval()        
             # Heads up: For autoregressive models, train_loss tracks something very different than val_loss!
             # val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, weights, criterion)
-            if config.get('model') == 'transformer':
-                val_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, val_weights)
-                val_preds = model_wrapper.model(X, Y[:,:-1], tgt_mask=model_wrapper.tgt_mask)
-                val_loss = criterion(val_preds, Y[:, 1:], val_weights).item()
-            else:
-                val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, val_weights, criterion)
+        
+            # # # # # # # # val ac computation
+
+            # Initialize data buffer with train/test split
+            # I DON'T REALLY NEED THIS.
+            # data_buffer = generate_buffer(buffer_size + test_size)
+            # test_val_batch = data_buffer[:(test_size * batch_size * len(error_rate))]
+            # data_buffer = data_buffer[(test_size * batch_size * len(error_rate)):]
+            # gc.collect()
+            # val_acc = decode_test_batch(test_val_batch)
+
+
+
+            # # # # # # # # train acc computation
             train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_train_weights_tensor)
 
-            # DEBUG for encdec
-            # tgt_input = Y[:, :-1] # shape [batch, output_len - 1]
-            # tgt_out = Y[:, 1:] # shape [batch, output_len - 1]
-            # model_out = model_wrapper.model(X, tgt_input)
-            # pred_out = (model_out >= 0).long()
-            # print("training comparison")
-            # for y, ypred, w in zip(tgt_out, pred_out, downsampled_train_weights):
-            #     if w > 0:
-            #         print(y, ypred)
-            # print()
 
-            # print("prediction comparison:")
-            # Y_pred = model_wrapper.predict(X)
-            # for y, ypred, w in zip(Y, Y_pred, weights):
-            #     if w > 0:
-            #         print(y, ypred)
-            # reporting every 10 epochs
+
+            # # # # # test acc calculation
+            # Generate a test batch
+            graph_batch, correct_predictions_trivial = generate_test_batch(test_size)
+            loader = DataLoader(graph_batch, batch_size = 1000)
+            correct_predictions = 0
+            self.model.eval()            # run network in training mode 
+            with torch.no_grad():   # turn off gradient computation (https://discuss.pytorch.org/t/model-eval-vs-with-torch-no-grad/19615)
+                for data in loader:
+                    # Perform forward pass to get network output
+                    prediction = self.predict(data)
+                    target = data.y.to(int) # Assumes binary targets (no probabilities)
+                    correct_predictions += int( (prediction == target).sum() )
+
+            # Count correct predictions by GNN for nontrivial syndromes
+            val_acc = (correct_predictions + correct_predictions_trivial) / test_size
+
             epoch_results = {
                     "epoch": epoch,
                     "train_loss": train_loss,
                     "train_acc": train_acc,
-                    "val_loss": val_loss,
                     "val_acc": val_acc,
                     "vs_lookup": val_acc - lookup_val_acc,
                     "vs_minweight": val_acc - minimum_weight_val_acc
@@ -201,3 +237,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
 
     # return the final results
     return best_results
+
+
+
