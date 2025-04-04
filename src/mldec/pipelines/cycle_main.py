@@ -17,8 +17,7 @@ def main(config):
 	# underlying data distribution. This virtual sampling is done
 	# just-in-time.
 	dataset_module = config.get("dataset_module")
-	toric_exp = "var" # options: var, novar
-	if dataset_module == "toy_problem":
+	if dataset_module == "reps_toric_code":
 		n = config['n']
 		# this dataset describes what data the model will be evaluated on.
 		dataset_config = {
@@ -27,23 +26,9 @@ def main(config):
 			'pcm': toy_problem_data.repetition_pcm(n),
 			"sos_eos": config.get("sos_eos", None),
 		}
-		# KNOB SETTINGS: This is an additional description of what data the model will be trained on.
-		# train mode:
-		# anything not set in `knob_settings` will be defaulted to the `dataset_config`.
-		# tune mode:
-		# Anything not set in this can be written with knob_settings in the hyperparameter config YAML file.
-		# anything set in this that is attempted to be overwritten by the hyperparameter config yaml will raise an error.
 		knob_settings = {
 			# 'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
 			'alpha': dataset_config.get('alpha'),
-		}
-	elif dataset_module == "toric_code":
-		n = config['n']
-		dataset_config = {
-			'p': 0.05,
-			'var': 0.03,
-			"sos_eos": config.get("sos_eos", None),
-			"beta": 1
 		}
 	else:
 		raise ValueError("Unknown dataset module")
@@ -76,12 +61,6 @@ def main(config):
 		# Load in the tuning deck parameters
 		knob_settings = yaml["knob_settings"]
 		tune_model.validate_knob_settings(config, knob_settings, dataset_config, logger)
-		if dataset_module == "toric_code" and toric_exp == "novar":
-			print("NOVAR EXPERIMENT")
-			knob_settings["var"] = 0
-		elif dataset_module == "toric_code" and toric_exp == "var":
-			print("VAR EXPERIMENT")
-			knob_settings["var"] = dataset_config.get("var")
 		hyper_config = yaml["hyperparameters"]
 		tune_model.validate_tuning_parameters(config, hyper_config, logger)
 		hyper_settings = yaml["settings"]
@@ -107,23 +86,19 @@ if __name__ == "__main__":
 	MODEL = "transformer" # options: cnn, transformer
 	# # # # # # # ## # # # # # # # # # # # # 
 
-	if dataset_module == "toy_problem":
+	if dataset_module == "reps_toric_code":
+		# FIXME
 		n = 8
 		input_dim = n - 1
 		output_dim = n
-	elif dataset_module == "toric_code":
-		n = 9
-		input_dim = n - 1
-		output_dim = 2
-	only_good_str = "_only_good" if only_good_examples else ""
 
 	config = {
 		"model" : MODEL,
-		"hyper_config_path": f"{MODEL}_{dataset_module}{only_good_str}.yaml",
+		"hyper_config_path": f"{MODEL}_{dataset_module}.yaml",
 		"device": "cpu", 
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_train": 1234, 
+		"n_train": 10000,
 		"dataset_module": dataset_module,
 		# Training config: 
 		"max_epochs": 6000,
@@ -133,34 +108,18 @@ if __name__ == "__main__":
 		"input_dim": input_dim,
 		"output_dim": output_dim,
 		# "lr": 0.003, # !OVERWRITE
-		# "batch_size": 250, # !OVERWRITE # note: 1994:=infinity (virtual) training data is weighted by underlying distribution
+		# "batch_size": 250, # !OVERWRITE
 		# "dropout": 0.05, # !OVERWRITE
 	}
 
-	if config.get("model") == "ffnn":
-		model_config = {
-			"model": "ffnn",
-			"hidden_dim": 16, # !OVERWRITE
-			"n_layers": 3, # !OVERWRITE
-			"dropout": 0, # !OVERWRITE
-		}
-	elif config.get("model") == "cnn":
+	if config.get("model") == "gnn":
 		model_config = {
 			"model": "cnn",
 			# "conv_channels": 4, # !OVERWRITE
 			# "kernel_size": 3, # !OVERWRITE
 			# "n_layers": 3, # !OVERWRITE
 		}
-	elif config.get("model") == "transformer":
-		config["sos_eos"] = (0, 0)
-		model_config = {
-			"model": "transformer",
-			# "d_model": 16, # !OVERWRITE
-			# "nhead": 4, # !OVERWRITE
-			# "num_encoder_layers": 2, # !OVERWRITE
-			# "num_decoder_layers": 2, # !OVERWRITE
-			# "dim_feedforward": 8, # !OVERWRITE
-		}
+
 
 	config.update(model_config)
 	main(config)

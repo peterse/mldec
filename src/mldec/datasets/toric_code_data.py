@@ -161,7 +161,7 @@ def sample_virtual_XY(probs, m, n, dataset_config, cache=True):
 
     args:
         probs: (N,) array of probabilities of each datum
-        m: number of samples to draw
+        m: number of samples to draw. if m==1994, we will draw infinite samples.
         n: number of qubits
         config: Should contain...
         sos_eos: Tuple (sos, eos) to append to the targets. If None, no tokens are appended.
@@ -181,6 +181,14 @@ def sample_virtual_XY(probs, m, n, dataset_config, cache=True):
             raise ValueError("you haven't cached training data yet.")
         X_full, Y_full, _ = out # shapes (2^(n+1), n-1) and (2^(n+1), 2) respectively
         
+    if m == 1994:
+        Xb_tensor = torch.tensor(X_full, dtype=torch.float32)
+        Yb_tensor = torch.tensor(Y_full, dtype=torch.float32)
+        sos_eos = dataset_config.get("sos_eos")
+        if sos_eos:
+            sos, eos = sos_eos
+            Yb_tensor = torch.cat([sos*torch.ones((Yb_tensor.shape[0], 1)), Yb_tensor, eos*torch.ones((Yb_tensor.shape[0], 1))], axis=1)
+        return torch.tensor(X_full), torch.tensor(Y_full), torch.tensor(weights, dtype=torch.float32), torch.tensor(weights, dtype=torch.float32).numpy()
     # We're going to work with a 'ragged' array, which contains only bitstrings that were sampled
     # for this dataset
     hist = tools.sample_histogram(probs, m) 

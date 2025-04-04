@@ -127,8 +127,21 @@ def sample_virtual_XY(probs, m, n, dataset_config):
     """
     H = dataset_config['pcm']
 
+
     hist = tools.sample_histogram(probs, m) 
     base = binarr(n)
+
+    if m == 1994:
+        Y = base
+        X = Y @ H.T % 2
+        Xb_tensor = torch.tensor(X, dtype=torch.float32)
+        Yb_tensor = torch.tensor(Y, dtype=torch.float32)
+        sos_eos = dataset_config.get("sos_eos")
+        if sos_eos:
+            sos, eos = sos_eos
+            Yb_tensor = torch.cat([sos*torch.ones((Yb_tensor.shape[0], 1)), Yb_tensor, eos*torch.ones((Yb_tensor.shape[0], 1))], axis=1)
+        return Xb_tensor, Yb_tensor, torch.tensor(weights, dtype=torch.float32), torch.tensor(weights, dtype=torch.float32).numpy()
+
     Y = np.array([base[i] for i in range(len(probs)) if hist[i] > 0])
     X = Y @ H.T % 2
     weights = np.array([hist[i] for i in range(len(probs)) if hist[i] > 0])

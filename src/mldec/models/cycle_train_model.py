@@ -9,12 +9,9 @@ from mldec.pipelines import loggingx
 def train_model(model_wrapper, dataset_module, config, validation_dataset_config, knob_settings, manager=None):
 
     # de-serializing the dataset module
-    if dataset_module == "toy_problem":
-        from mldec.datasets import toy_problem_data
-        dataset_module = toy_problem_data
-    elif dataset_module == "toric_code":
-        from mldec.datasets import toric_code_data
-        dataset_module = toric_code_data
+    if dataset_module == "reps_toric_code":
+        from mldec.datasets import reps_toric_code_data
+        dataset_module = reps_toric_code_data
 
     device = torch.device(config.get('device'))
     if manager is not None:
@@ -36,8 +33,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         log_print(f"  {k}: {v}")
 
     history = []    
-    criterion = evaluation.WeightedSequenceLoss(torch.nn.BCEWithLogitsLoss)
-
+    criterion = torch.nn.BCEWithLogitsLoss
     optimizer, scheduler = training.initialize_optimizer(config, model_wrapper.model.parameters())
     early_stopping = training.EarlyStopping(patience=patience) 
     max_val_acc = -1
@@ -45,6 +41,10 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     tot_params, trainable_params = initialize.count_parameters(model_wrapper.model)
     log_print(f"Training model {config.get('model')} with {tot_params} total parameters, {trainable_params} trainable.")
     
+
+
+
+
     # TURNING THE KNOB: We will use (potentially) different dataset configs for training vs. validation
     # validation_dataset_config = copy.deepcopy(validation_dataset_config)
     training_dataset_config = {}
@@ -66,17 +66,12 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     # more efficient whenever that number is much smaller than the expected amount of training data.
     # TODO: optimization for bandwidth; maybe pre-load large chunks of data since its only a few KB
     # per batch
+
     n_batches = n_train // batch_size
-    if batch_size == 1994: # this special number indicates infinite training data.
-        n_batches = 1
-    if config.get('only_good_examples'):
-        X, Y, val_weights = dataset_module.uniform_over_good_examples(n, validation_dataset_config)
-        train_weights = val_weights # no knob in this setting
-    else:
-        # compute the probability weights corresponding to the p for this distribtion
-        X, Y, val_weights = dataset_module.create_dataset_training(n, validation_dataset_config)
-        # compute the probability weights after 'turning the knob' on the p
-        _, _, train_weights = dataset_module.create_dataset_training(n, training_dataset_config)
+    # compute the probability weights corresponding to the p for this distribtion
+    X, Y, val_weights = dataset_module.create_dataset_training(n, validation_dataset_config)
+    # compute the probability weights after 'turning the knob' on the p
+    _, _, train_weights = dataset_module.create_dataset_training(n, training_dataset_config)
     # copy the weights
     train_weights_np = train_weights.numpy()
     val_weights = torch.tensor(val_weights, dtype=torch.float32)  # true distribution of bitstrings  

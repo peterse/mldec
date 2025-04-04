@@ -27,6 +27,12 @@ def initialize_model(config):
         dim_feedforward = config.get("dim_feedforward")
         sos, eos = config.get("sos_eos")
         model = encdec.BinarySeq2Seq(input_dim, output_dim, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward, dropout, device=device, sos_token=sos)
+    
+    elif config.get("model") == "gnn":
+         from mldec.models import gnn
+         gcn_layers = config.get("gcn_layers")
+         mlp_layers = config.get("mlp_layers")
+         model = gnn.RepGNN(gcn_layers, mlp_layers, dropout=dropout)
     else:
         raise ValueError("Unknown model type")
     
