@@ -19,18 +19,39 @@ from mldec.utils.graph_representation import get_3D_graph
 class RepGNN(nn.Module):
     """Wrapper class for a simple fully-connected feed-forward neural network
     
+    exampls parameters
+    gcn_depth = 5
+    gcn_min = 32
+    mlp_depth = 3
+    mlp_max = 32
+    
+    Results in (32, 64, 128, 64, 32) for GCN layers and (32, 16, 8) for MLP layers.
+
     Args:
         input_dim: int, the dimension of the input = syndrome length
-        hidden_dim: int or list of ints, the dimension of the hidden layers
         output_dim: int, the dimension of the output = output length.
-        n_layers: int, the number of hidden layers
+        gcn_depth: number of GCN layers
+        gcn_min: minimum channel count for the first layer, which is doubled for gcn_depth/2 layers then halved again
+        mlp_depth: number of MLP layers
+        mlp_max: maximum channel count for the first layer, which is halved for mlp_depth layers
     """
-    def __init__(self, gcn_layers, mlp_layers, dropout=0, device=None):
+    def __init__(self, input_dim, output_dim, gcn_depth, gcn_min, mlp_depth, mlp_max, device=None):
         super(RepGNN, self).__init__()
         
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        gcn_layers = [gcn_min]
+        assert gcn_depth % 2 == 1, "gcn_depth must be odd"
+        assert mlp_depth % 2 == 1, "mlp_depth must be odd"
+        for i in range((gcn_depth - 1)// 2):
+            gcn_layers.append(gcn_layers[-1] * 2)
+        for i in range((gcn_depth - 1)// 2):
+            gcn_layers.append(gcn_layers[-1] // 2)
+        mlp_layers = [mlp_max]
+        for i in range((mlp_depth - 1)):
+            mlp_layers.append(mlp_layers[-1] // 2)
         self.gcn_layers = gcn_layers
         self.mlp_layers = mlp_layers
-        self.dropout = dropout
         self.device = device
 
         self._initialize_model()        
@@ -39,10 +60,11 @@ class RepGNN(nn.Module):
         self.model = GNN_flexible(
             hidden_channels_GCN=self.gcn_layers,
             hidden_channels_MLP=self.mlp_layers,
-            dropout=self.dropout).to(self.device)
+            num_node_features=self.input_dim, 
+            num_classes=self.output_dim).to(self.device)
         
     def training_step(self, data, optimizer, criterion):
-        """Perform a single training step.
+        """Perform a single training step; `data` represents a batch of data
         data.x            (number of nodes in sample * batch_size, 4)
         data.edge_index   (2, number of edge_indices in sample * batch_size)
         data.edge_attr    (number of edge_indices in sample * batch_size, 1)
@@ -53,11 +75,15 @@ class RepGNN(nn.Module):
         data.batch = data.batch.to(self.device)
         out = self.model(data.x, data.edge_index, data.edge_attr, data.batch)
         target = data.y.to(int)
-        # print(out.shape, data.y.shape)
+        # print(f"target: {target.reshape(-1)}")
+        # print(f"out: {out.reshape(-1)}")
         loss = criterion(out, data.y)
         prediction = (torch.sigmoid(out.detach()) > 0.5).to(self.device).long()
-        correct_predictions += int((prediction == target).sum().item())
-        return loss
+        correct_predictions = int((prediction == target).sum().item())
+
+        loss.backward()
+        optimizer.step()
+        return correct_predictions, loss
 
     def predict(self, data):
         """Predict the output of the model."""

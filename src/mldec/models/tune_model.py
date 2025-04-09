@@ -9,7 +9,7 @@ import multiprocessing as mp
 import pandas as pd
 import yaml
 
-from mldec.models import initialize, train_model
+from mldec.models import initialize, train_model, reps_train_model
 from mldec.pipelines import loggingx
 
 
@@ -96,25 +96,61 @@ def make_tune_directory(config, abs_path):
 	return tune_directory
 
 
-def trainable(package):
-	"""This function is now inside its own thread"""
-	# Note: Function wrapping within `tune_hyperparameters_multiprocessing` is dangerous
-	# because of serializability issues, e.g. pickling a function that is not defined at the module level
-	(hyper_config, config, dataset_module, dataset_config, knob_settings, thread_vars) = package
-	manager = ThreadManager(thread_vars)
+class MakeTrainable:
+	"""Dispatching a trainer in a serializable way."""
+	def __init__(self, trainer):
+		self.trainer = trainer
+	def __call__(self, package):
+		"""This function is now inside its own thread"""
+		# Note: Function wrapping within `tune_hyperparameters_multiprocessing` is dangerous
+		# because of serializability issues, e.g. pickling a function that is not defined at the module level
+		(hyper_config, config, dataset_module, dataset_config, knob_settings, thread_vars) = package
+		manager = ThreadManager(thread_vars)
 
-	device = torch.device("cpu")
-	manager.log_print(f"initializing multiprocessing on: {device}")
-	manager.log_print(f"Process ID: {os.getpid()}, Process Name: {mp.current_process().name}")
-	config["device"] = "cpu"
-	# merge the hyperparameter config into the ordinary config, giving priority to the hyperparameter config
-	for k, v in hyper_config.items():
-		config[k] = v
-	model = initialize.initialize_model(config)
-	results = train_model.train_model(model, dataset_module, config, dataset_config, knob_settings, manager=manager)
-	manager.save_configs(config, hyper_config)
-	return results
+		device = torch.device("cpu")
+		manager.log_print(f"initializing multiprocessing on: {device}")
+		manager.log_print(f"Process ID: {os.getpid()}, Process Name: {mp.current_process().name}")
+		config["device"] = "cpu"
+		# merge the hyperparameter config into the ordinary config, giving priority to the hyperparameter config
+		for k, v in hyper_config.items():
+			config[k] = v
+		model = initialize.initialize_model(config)
+		results = self.trainer(model, dataset_module, config, dataset_config, knob_settings, manager=manager)
+		manager.save_configs(config, hyper_config)
+		return results
 
+
+def distribute_hyperparameters_evenly(num_samples, knob_settings, key, fixed_dict={}):
+	"""Evenly distribute a list of knob settings over a number of samples.
+	
+	Potentially also concatenating each setting with `fixed_dict`.
+
+	Example usage
+		num_samples = 3
+		knob_settings = [1, 2, 4]
+		key = "a"
+		fixed_dict = {"b": 3}
+	The results will be
+		[{"a": 1, "b": 3}, {"a": 2, "b": 3}, {"a": 4, "b": 3}]
+	Returns: A list of dictionaries, each containing a single knob setting and the fixed settings.
+	"""
+	knob_list = []
+	div = len(knob_settings.get(key)) 
+	assert len(knob_settings.keys()) == 1 # otherwise this 'grid search' needs to be 2D
+	rem = num_samples % div
+	quot = num_samples // div
+	for i in range(div):
+		# we will get about `div` samples for each knob setting
+		for _ in range(quot):
+			temp = {key: knob_settings.get(key)[i]}
+			temp.update(fixed_dict) 
+			knob_list.append(temp)
+	# distribute the remainder
+	for j in range(rem):
+		temp = {key: knob_settings.get(key)[j]}
+		temp.update(fixed_dict)
+		knob_list.append(temp)
+	return knob_list
 
 def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config, knob_settings, delete_intermediate_dirs=True):
 	"""
@@ -145,36 +181,17 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 		hyper_list.append(hyperparameter_slice)
 
 	# get knob settings to pass directly into train func
-	# we do not randomly sample knob settings, we instead distribute them evenly
-	# among all of the samples for this run.
-	knob_list = []
+	# we distribute them evenly among all of the samples for this run.
 	num_samples = hyper_settings.get("num_samples")
 	if dataset_module == "toy_problem":
-		div = len(knob_settings.get('p')) 
-		assert len(knob_settings.keys()) == 1 # otherwise this 'grid search' needs to be 2D
-		rem = num_samples % div
-		quot = num_samples // div
-		for i in range(div):
-			# we will get about `div` samples for each knob setting
-			for _ in range(quot):
-				knob_list.append({'p': knob_settings.get('p')[i]})
-		# distribute the remainder
-		for j in range(rem):
-			knob_list.append({'p': knob_settings.get('p')[j]})	
+		knob_list = distribute_hyperparameters_evenly(num_samples, knob_settings, "p")
 	elif dataset_module == "toric_code":
-		div = len(knob_settings.get('beta')) 
-		assert len(knob_settings.keys()) == 2 # need to specify var, and list of betas
-		rem = num_samples % div
-		quot = num_samples // div
-		for i in range(div):
-			# we will get about `div` samples for each knob setting
-			for _ in range(quot):
-				knob_list.append({'beta': knob_settings.get('beta')[i], 'var': knob_settings.get('var')})
-		# distribute the remainder
-		for j in range(rem):
-			knob_list.append({'beta': knob_settings.get('beta')[j], 'var': knob_settings.get('var')})			
+		knob_list = distribute_hyperparameters_evenly(num_samples, knob_settings, "beta", fixed_dict={"var": knob_settings.get("var")})
+	elif dataset_module == "reps_toric_code":
+		knob_list = distribute_hyperparameters_evenly(num_samples, knob_settings, "beta")
 	else:
 		raise NotImplementedError
+	logger.debug("Distributing these hyperparameters: {}".format(knob_list))
 
 
 	# Assemble local variables to be called from within a thread
@@ -195,6 +212,12 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 		logger.info(package)
 		package_list.append(package)
 		time.sleep(0.1) # to ensure unique timestamps
+	
+	# Different training schemes for with/without multiple code cycles.
+	if dataset_module in ["toy_problem", "toric_code"]:
+		trainable = MakeTrainable(trainer=train_model.train_model)
+	elif dataset_module == "reps_toric_code":
+		trainable = MakeTrainable(trainer=reps_train_model.train_model)
 
 	with mp.Pool(processes=num_cpus) as pool:
 		# Map f to the list of parameters
@@ -239,12 +262,13 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 
 
 def validate_tuning_parameters(config, hyper_config, logger):
-
+	"""As you might guess, this exists because of a major mistake"""
 	ALLOWED_HYPERS = {
 		# "rnn": ["cell_type", "emb_size", "hidden_size", "depth", "dropout"],
 		"transformer": ["d_model", "nhead", "num_encoder_layers", "num_decoder_layers", "dim_feedforward", "dropout"],
 		"cnn": ["conv_channels", "n_layers", "kernel_size", "dropout"],
 		"ffnn": ["hidden_dim", "n_layers", "dropout"],
+		"gnn": ["gcn_depth", "gcn_min", "mlp_depth", "mlp_max"],
 	}
 	error = 0
 	err_out = ""

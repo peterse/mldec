@@ -1,7 +1,7 @@
 import os
-from mldec.datasets import toy_problem_data
+from mldec.datasets import reps_toric_code_data
 from mldec.pipelines import loggingx
-from mldec.models import initialize, train_model, tune_model
+from mldec.models import initialize, reps_train_model, tune_model
 import torch
 import numpy as np
 import logging
@@ -10,25 +10,15 @@ import datetime
 
 def main(config):
 
-	# Configure the dataset.
-	# Why pass a module? The main observation is that actually
-	# training on real data is comparatively slow; we instead
-	# reweight a loss function according to a sample from the 
-	# underlying data distribution. This virtual sampling is done
-	# just-in-time.
 	dataset_module = config.get("dataset_module")
 	if dataset_module == "reps_toric_code":
 		n = config['n']
 		# this dataset describes what data the model will be evaluated on.
 		dataset_config = {
-			'p': 0.1,
-			'alpha': 0.7,
-			'pcm': toy_problem_data.repetition_pcm(n),
-			"sos_eos": config.get("sos_eos", None),
-		}
-		knob_settings = {
-			# 'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
-			'alpha': dataset_config.get('alpha'),
+			'p': 0.004,
+			'repetitions': 3,
+			'code_size': 3,
+			'beta': 1, # this gets overwritten by the knob settings
 		}
 	else:
 		raise ValueError("Unknown dataset module")
@@ -64,10 +54,13 @@ def main(config):
 		hyper_config = yaml["hyperparameters"]
 		tune_model.validate_tuning_parameters(config, hyper_config, logger)
 		hyper_settings = yaml["settings"]
-		tune_model.tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config, knob_settings)
+		tune_model.tune_hyperparameters_multiprocessing(
+			hyper_config, hyper_settings, dataset_module, 
+			config, dataset_config, knob_settings,
+			delete_intermediate_dirs=False)
 	else:
 		model_wrapper = initialize.initialize_model(config)
-		train_model.train_model(model_wrapper, dataset_module, config, dataset_config, knob_settings)
+		reps_train_model.train_model(model_wrapper, dataset_module, config, dataset_config, knob_settings)
 
 if __name__ == "__main__":
 
@@ -80,28 +73,26 @@ if __name__ == "__main__":
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 
 	# # # important stuff # # # # # # # # # 
-	only_good_examples = False
 	mode = "tune" # options: train, tune
-	dataset_module = "toric_code" # options: toy_problem, toric_code
-	MODEL = "transformer" # options: cnn, transformer
+	dataset_module = "reps_toric_code" # options: reps_toric_code
+	MODEL = "gnn" # options: gnn
 	# # # # # # # ## # # # # # # # # # # # # 
-
 	if dataset_module == "reps_toric_code":
 		# FIXME
 		n = 8
-		input_dim = n - 1
-		output_dim = n
+		input_dim = 5 # 5-dimensional vectors to represent graph coordinates
+		output_dim = 1 # binary clf
 
 	config = {
 		"model" : MODEL,
 		"hyper_config_path": f"{MODEL}_{dataset_module}.yaml",
 		"device": "cpu", 
 		"n": n,
-		"only_good_examples": only_good_examples, 
-		"n_train": 10000,
+		"n_train": 100,
+		"n_test": 100,
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 6000,
+		"max_epochs": 1000,
 		"patience": 2000,  
 		"opt": "adam",
 		"mode": mode,
@@ -109,15 +100,16 @@ if __name__ == "__main__":
 		"output_dim": output_dim,
 		# "lr": 0.003, # !OVERWRITE
 		# "batch_size": 250, # !OVERWRITE
-		# "dropout": 0.05, # !OVERWRITE
+		# "dropout": 0.05, # 
 	}
 
 	if config.get("model") == "gnn":
 		model_config = {
-			"model": "cnn",
-			# "conv_channels": 4, # !OVERWRITE
-			# "kernel_size": 3, # !OVERWRITE
-			# "n_layers": 3, # !OVERWRITE
+			"model": "gnn",
+			# "gcn_depth": 5,# !OVERWRITE
+			# "gcn_min": 32,# !OVERWRITE
+			# "mlp_depth": 3,# !OVERWRITE
+			# "mlp_max": 64,# !OVERWRITE
 		}
 
 

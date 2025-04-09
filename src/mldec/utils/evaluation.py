@@ -75,3 +75,16 @@ def weighted_accuracy_and_loss(model, X, Y, weights, criterion):
     acc = (compare * weights).sum()
     return acc.item(), loss.item()
     
+
+def batched_correct_predictions(data_batch, model, device):
+    """For a batch of data, compute the number of correct predictions."""
+    correct_predictions = 0
+    with torch.no_grad():
+        for data in data_batch:
+            data.batch = data.batch.to(device)
+            out = model(data.x, data.edge_index, data.edge_attr, data.batch)
+            target = data.y.to(int) # Assumes binary targets (no probabilities)
+            # Sum correct predictions
+            prediction = torch.sigmoid(out.detach()).round().to(int)
+            correct_predictions += int( (prediction == target).sum() )
+    return correct_predictions

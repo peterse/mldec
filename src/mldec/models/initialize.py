@@ -29,10 +29,12 @@ def initialize_model(config):
         model = encdec.BinarySeq2Seq(input_dim, output_dim, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward, dropout, device=device, sos_token=sos)
     
     elif config.get("model") == "gnn":
-         from mldec.models import gnn
-         gcn_layers = config.get("gcn_layers")
-         mlp_layers = config.get("mlp_layers")
-         model = gnn.RepGNN(gcn_layers, mlp_layers, dropout=dropout)
+        from mldec.models import gnn
+        gcn_depth = config.get("gcn_depth")
+        gcn_min = config.get("gcn_min")
+        mlp_depth = config.get("mlp_depth")
+        mlp_max = config.get("mlp_max")
+        model = gnn.RepGNN(input_dim, output_dim, gcn_depth, gcn_min, mlp_depth, mlp_max)
     else:
         raise ValueError("Unknown model type")
     
