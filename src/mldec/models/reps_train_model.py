@@ -4,6 +4,7 @@ import torch
 from torch_geometric.data import DataLoader
 import numpy as np
 import copy
+import time
 
 from mldec.utils import evaluation, training
 from mldec.models import initialize, baselines
@@ -85,7 +86,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     # minimum_weight_decoder.make_decoder(X, Y_no_sos_eos)
     # minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y_no_sos_eos, val_weights)
     # log_print("minweight acc: {}".format(minimum_weight_val_acc))
-
+    t_start = time.time()
     for epoch in range(max_epochs):
         train_loss = 0      
         correct_nontrivial_preds_tr = 0
@@ -120,7 +121,8 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             if val_acc > max_val_acc:
                 max_val_acc = val_acc
                 best_results = copy.deepcopy(epoch_results)
-            log_print(f"Epoch {epoch+1}/{max_epochs} | Train Loss: {train_loss:.4E} | Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}" + save_str)
+            time_elapsed = time.time() - t_start
+            log_print(f"Epoch {epoch+1}/{max_epochs} | Time elapsed: {time_elapsed:4.1f} | Train Loss: {train_loss:.4E} | Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}" + save_str)
 
             if config["mode"] == 'tune':
                 manager.report(epoch_results)

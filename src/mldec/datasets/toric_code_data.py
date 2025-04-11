@@ -188,7 +188,7 @@ def sample_virtual_XY(probs, m, n, dataset_config, cache=True):
         if sos_eos:
             sos, eos = sos_eos
             Yb_tensor = torch.cat([sos*torch.ones((Yb_tensor.shape[0], 1)), Yb_tensor, eos*torch.ones((Yb_tensor.shape[0], 1))], axis=1)
-        return torch.tensor(X_full), torch.tensor(Y_full), torch.tensor(weights, dtype=torch.float32), torch.tensor(weights, dtype=torch.float32).numpy()
+        return Xb_tensor, Yb_tensor, torch.tensor(probs, dtype=torch.float32), torch.tensor(probs, dtype=torch.float32).numpy()
     # We're going to work with a 'ragged' array, which contains only bitstrings that were sampled
     # for this dataset
     hist = tools.sample_histogram(probs, m) 

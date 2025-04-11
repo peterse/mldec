@@ -8,11 +8,9 @@ hyperparameters:
   mlp_max: [128, 64]
 
 knob_settings:
-  beta: [1.1, 1.05]
+  beta: [1]
 
 settings:
-  total_cpus: 2
-  num_samples: 2
+  total_cpus: 100
+  num_samples: 200
   total_gpus: 0
-
-
