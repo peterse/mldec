@@ -28,7 +28,12 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     patience = config['patience']
     n = config['n']
     mode = config['mode']
-    n_train = config['n_train']
+    n_batches = config.get('n_batches')
+    if n_batches is None:
+        n_train = config['n_train']
+        if n_train is None:
+            raise ValueError("n_train must be set in the config if n_batches is not set.")
+        n_batches = n_train // batch_size
 
     # dump the hyperparameters
     log_print(f"Hyperparameters:")
@@ -66,9 +71,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     # more efficient whenever that number is much smaller than the expected amount of training data.
     # TODO: optimization for bandwidth; maybe pre-load large chunks of data since its only a few KB
     # per batch
-    n_batches = n_train // batch_size
-    if batch_size == 1994: # this special number indicates infinite training data.
-        n_batches = 1
     if config.get('only_good_examples'):
         X, Y, val_weights = dataset_module.uniform_over_good_examples(n, validation_dataset_config)
         train_weights = val_weights # no knob in this setting
@@ -77,7 +79,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         X, Y, val_weights = dataset_module.create_dataset_training(n, validation_dataset_config)
         # compute the probability weights after 'turning the knob' on the p
         _, _, train_weights = dataset_module.create_dataset_training(n, training_dataset_config)
-    # copy the weights
+
     train_weights_np = train_weights.numpy()
     val_weights = torch.tensor(val_weights, dtype=torch.float32)  # true distribution of bitstrings  
     X, Y, val_weights = X.to(device), Y.to(device), val_weights.to(device)
@@ -87,6 +89,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     # this will accumulate a histogram of the training set over all batches
     downsampled_train_weights = np.zeros_like(train_weights_np)
     for _ in range(n_batches):
+        # these are 'batches' of finite-sampling noise imposed on train_weights. Unless batch_size= 1994, in which case we simulate infinite data i.e. perfect training weights
         Xb, Yb, train_weightsb, histb = dataset_module.sample_virtual_XY(train_weights_np, batch_size, n, training_dataset_config)
         Xb, Yb, train_weightsb = Xb.to(device), Yb.to(device), train_weightsb.to(device)
         downsampled_train_weights += histb

@@ -108,7 +108,7 @@ def optimal_decoding(n, p1, p2):
 def sample_virtual_XY(probs, m, n, dataset_config):
     """Sample virtual dataset.
     
-    The virtual dataset is a tuple (X, Y, weights).
+    The virtual dataset is a tuple (X, Y, weights). If m==1994, we simulate infinite training data.
 
     args:
         probs: (2**n,) array of probabilities of each bitstring
@@ -120,7 +120,7 @@ def sample_virtual_XY(probs, m, n, dataset_config):
         Y is (N, n) array, where N is the number of unique samples and n is the number of bits.
             Each row of Y is a unique bitstring that appeared in sampling.
         X is (N, n-1) array computed via the parity check matrix.
-        weights: (N,) array of weights for each sample.
+        weights: (N,) array of weights for each unique sample in the batch.
         hist: (2**n,) array of counts of each bitstring in the dataset, ordered correctly to match
             the ordering lf `probs`. This is used to build a complete training set iteratively during batching.
 

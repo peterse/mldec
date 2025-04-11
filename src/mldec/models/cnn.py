@@ -36,10 +36,19 @@ class CNN(nn.Module):
         ).to(self.device)
 
     def training_step(self, X, Y, weights, optimizer, criterion):
-        """Perform a single training step."""
+        """Perform a single training step with VIRTUAL DATA."""
         optimizer.zero_grad()
         Y_pred = self.model(X)
         loss = criterion(Y_pred, Y, weights)
+        loss.backward()
+        optimizer.step()
+        return loss
+
+    def real_training_step(self, X, Y, optimizer, criterion):
+        """Perform a single training step with REAL data."""
+        optimizer.zero_grad()
+        Y_pred = self.model(X)
+        loss = criterion(Y_pred, Y)
         loss.backward()
         optimizer.step()
         return loss

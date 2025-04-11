@@ -82,6 +82,7 @@ def main(config):
 		elif dataset_module == "toric_code" and toric_exp == "var":
 			print("VAR EXPERIMENT")
 			knob_settings["var"] = dataset_config.get("var")
+		# Note: anything in hyper_config will evantually overwrite the corresponding key in config
 		hyper_config = yaml["hyperparameters"]
 		tune_model.validate_tuning_parameters(config, hyper_config, logger)
 		hyper_settings = yaml["settings"]
@@ -95,7 +96,6 @@ if __name__ == "__main__":
 	# Some notes:
 	# scale up lr with batchsize in general.
 	# patience = early stopping patience, triggered on no improvement in val_acc for `patience` epochs (with checking every X epochs)\
-	# n_train = virtual training samples, i.e. noise in a histogram of the error distribution
 	# !OVERWRITE indiicates a hyperparam that may be overwritten by raytune `hyper_config` or raytune internals
 	# only_good_examples = uniform distribution over good examples
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
 		"device": "cpu", 
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_train": 1234, 
+		"n_batches": 32, # this controls the number of minibatches per epoch, i.e. gradient updates per epoch. This is more useful than total training data.
 		"dataset_module": dataset_module,
 		# Training config: 
 		"max_epochs": 6000,
