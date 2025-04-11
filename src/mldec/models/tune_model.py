@@ -136,7 +136,6 @@ def distribute_hyperparameters_evenly(num_samples, knob_settings, key, fixed_dic
 	"""
 	knob_list = []
 	div = len(knob_settings.get(key)) 
-	assert len(knob_settings.keys()) == 1 # otherwise this 'grid search' needs to be 2D
 	rem = num_samples % div
 	quot = num_samples // div
 	for i in range(div):
@@ -302,6 +301,16 @@ def validate_tuning_parameters(config, hyper_config, logger):
 			error = 1
 	if error:
 		raise ValueError("Hyperparameters are specified in both commandline and hyperparameters:\n{}".format(err_out))
+	
+	# Handling training amounts
+	if hyper_config.get("batch_size") is not None and hyper_config.get("n_batches") is not None:
+		if config.get("n_train"):
+			for batch_size in hyper_config.get("batch_size"):
+				if batch_size * config.get("n_batches") != config.get("n_train"):
+					err_str = "Batch size * n_batches must be equal to n_train, or do not specify n_train"
+					logger.error(err_str)
+					error = 1
+
 	logger.debug("Hyperparameters validated")
 
 

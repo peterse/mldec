@@ -115,10 +115,9 @@ class GNN_flexible(torch.nn.Module):
                  hidden_channels_MLP=(32, 16),
                  num_node_features=5, 
                  num_classes=1, 
-                 manual_seed=1234):
+                #  manual_seed=1234,
+                 ):
         super().__init__()
-        if manual_seed is not None:
-            torch.manual_seed(manual_seed)
 
         # Build GraphConv layers using ModuleList
         self.convs = nn.ModuleList()
