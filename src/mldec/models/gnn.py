@@ -41,12 +41,13 @@ class RepGNN(nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
         gcn_layers = [gcn_min]
-        assert gcn_depth % 2 == 1, "gcn_depth must be odd"
-        assert mlp_depth % 2 == 1, "mlp_depth must be odd"
-        for i in range((gcn_depth - 1)// 2):
+        max_pt = (gcn_depth)// 2
+        for i in range(max_pt):
             gcn_layers.append(gcn_layers[-1] * 2)
-        for i in range((gcn_depth - 1)// 2):
+        for i in range(max_pt, gcn_depth - 1):
             gcn_layers.append(gcn_layers[-1] // 2)
+        print(gcn_layers)
+            
         mlp_layers = [mlp_max]
         for i in range((mlp_depth - 1)):
             mlp_layers.append(mlp_layers[-1] // 2)

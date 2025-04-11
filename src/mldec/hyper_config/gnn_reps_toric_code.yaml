@@ -2,9 +2,9 @@ model_type: gnn
 hyperparameters:
   lr: [0.001, 0.002, 0.003, 0.004, 0.005]
   batch_size: [128, 256]
-  gcn_depth: [5, 7]
+  gcn_depth: [5, 6, 7]
   gcn_min: [32, 64]
-  mlp_depth: [3]
+  mlp_depth: [3, 4]
   mlp_max: [128, 256]
 
 knob_settings:
