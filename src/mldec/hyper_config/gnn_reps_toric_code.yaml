@@ -1,11 +1,11 @@
 model_type: gnn
 hyperparameters:
-  lr: [0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.002]
+  lr: [0.001, 0.002, 0.003, 0.004, 0.005]
   batch_size: [128, 256]
-  gcn_depth: [3, 5]
-  gcn_min: [16, 32, 64]
+  gcn_depth: [5, 7]
+  gcn_min: [32, 64]
   mlp_depth: [3]
-  mlp_max: [128, 64]
+  mlp_max: [128, 256]
 
 knob_settings:
   beta: [1]
