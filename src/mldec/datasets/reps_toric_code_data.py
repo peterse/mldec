@@ -66,13 +66,14 @@ def generate_batch(stim_data_list,
 
 
 def sample_dataset(n_data, dataset_config, device):
-    """Given a dataset config, sample a dataset of size n_data containing only nontrivial.
+    """Given a dataset config, sample a dataset of size n_data.
     
     Since a large fraction of data are trivial, we will also keep track
-    of how many 'no error' events were sampled and return this. This procedure allows you to
+    of how many 'no error' events were sampled and return this, but otherwise not include such 
+    data in the training set. This procedure allows you to
     calculate accuracy as
 
-        acc = (accuracy on dataset) + trivial_count / (n_data + trivial_count)
+        acc = (correct_predictions_on_data + trivial_count) / n_data
 
     Returns:
         torch_buffer: A list of torch Data objects, each containing a graph representation 
@@ -81,7 +82,7 @@ def sample_dataset(n_data, dataset_config, device):
 
     """
 
-    repetitions = dataset_config.get("repetitions")
+    repetitions = dataset_config.get("repetitions") # "cycles" of measurement
     code_size = dataset_config.get("code_size")
     p_base = dataset_config.get("p")
     beta = dataset_config.get("beta")
@@ -107,28 +108,35 @@ def sample_dataset(n_data, dataset_config, device):
 
     # get the surface code grid:
     mask = syndrome_mask(code_size, repetitions)
-    factor = max(1/(20*p), 10)
-    shots = int(factor * n_data)
-    stim_data, observable_flips = [], []
-    trivial_count = 0
-    while len(stim_data) < (n_data):
-        stim_data_it, observable_flips_it = sampler.sample(shots=shots, separate_observables=True)
-        # remove empty syndromes:
+    stim_data, observable_flips = sampler.sample(shots=n_data, separate_observables=True)
+    non_empty_indices = (np.sum(stim_data, axis = 1) != 0)
+    trivial_count += len(observable_flips[~ non_empty_indices])
+    stim_data = stim_data[non_empty_indices, :]
+    observable_flips = observable_flips[non_empty_indices]
 
-        non_empty_indices = (np.sum(stim_data_it, axis = 1) != 0)
-        new_data = stim_data_it[non_empty_indices, :]
-        new_obs = observable_flips_it[non_empty_indices]
-        if len(new_data) + len(new_obs) > n_data:
-            # we now need to truncate nicely so that there are n_data, but the proportion of non-empty syndromes
-            # correctly models the underlying distribution of trivial syndromes; the easiest way is to 
-            # finish off sampling ineficiently
-            shots = 1
-            continue
+    # This code will let you generate dataset with only nontrivial data...
+    # factor = max(1/(20*p), 10)
+    # shots = int(factor * n_data)
+    # stim_data, observable_flips = [], []
+    # trivial_count = 0
+    # while len(stim_data) < (n_data):
+    #     stim_data_it, observable_flips_it = sampler.sample(shots=shots, separate_observables=True)
+    #     # remove empty syndromes:
 
-        stim_data.extend(new_data)
-        observable_flips.extend(new_obs)
-        trivial_count += len(observable_flips_it[~ non_empty_indices])
-    buffer = generate_batch(stim_data[:n_data], observable_flips[:n_data], detector_coordinates, mask)
+    #     non_empty_indices = (np.sum(stim_data_it, axis = 1) != 0)
+    #     new_data = stim_data_it[non_empty_indices, :]
+    #     new_obs = observable_flips_it[non_empty_indices]
+    #     if len(new_data) + len(new_obs) > n_data:
+    #         # we now need to truncate nicely so that there are n_data, but the proportion of non-empty syndromes
+    #         # correctly models the underlying distribution of trivial syndromes; the easiest way is to 
+    #         # finish off sampling ineficiently
+    #         shots = 1
+    #         continue
+
+    #     stim_data.extend(new_data)
+    #     observable_flips.extend(new_obs)
+    #     trivial_count += len(observable_flips_it[~ non_empty_indices])
+    buffer = generate_batch(stim_data, observable_flips, detector_coordinates, mask)
     torch_buffer = dataset_to_torch(buffer, device)
 
     return torch_buffer, trivial_count

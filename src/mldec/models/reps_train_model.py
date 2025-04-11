@@ -96,14 +96,14 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             correct_nontrivial_preds_tr += correct_nontrivial_preds_tr_batch
         train_loss /= len(traing_dataloader) # average loss over batches
         # Compute accuracies as (correct predictions + trivial count) / (n_data + trivial count)
-        train_acc = (correct_nontrivial_preds_tr + triv_tr) / (n_train + triv_tr)
+        train_acc = (correct_nontrivial_preds_tr + triv_tr) / n_train
 
         if (epoch % 10) == 0:
             # Compute accuracies: Happens every 10 epochs
             model_wrapper.model.eval()        
             # correct_nontrivial_preds_tr = evaluation.batched_correct_predictions(data_tr, model_wrapper.model, device)
             correct_nontrivial_preds_val = evaluation.batched_correct_predictions(val_dataloader, model_wrapper.model, device)
-            val_acc = (correct_nontrivial_preds_val + triv_val) / (n_test + triv_val)
+            val_acc = (correct_nontrivial_preds_val + triv_val) / n_test
             epoch_results = {
                     "epoch": epoch,
                     "train_loss": train_loss,
