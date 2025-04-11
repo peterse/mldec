@@ -34,6 +34,9 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         if n_train is None:
             raise ValueError("n_train must be set in the config if n_batches is not set.")
         n_batches = n_train // batch_size
+    else:
+        n_train = n_batches * batch_size
+    log_print("Training on {} total data with {} batches of size {}".format(n_train, n_batches, batch_size))
 
     # dump the hyperparameters
     log_print(f"Hyperparameters:")

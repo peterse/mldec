@@ -136,7 +136,6 @@ def distribute_hyperparameters_evenly(num_samples, knob_settings, key, fixed_dic
 	"""
 	knob_list = []
 	div = len(knob_settings.get(key)) 
-	assert len(knob_settings.keys()) == 1 # otherwise this 'grid search' needs to be 2D
 	rem = num_samples % div
 	quot = num_samples // div
 	for i in range(div):
