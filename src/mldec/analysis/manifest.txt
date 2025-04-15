@@ -1,2 +1,0 @@
-cnn_toy_problem_results_N2000_v4.csv: results for 1800 CNN runs, p=0.1, alpha=0.7, N=2000, batch size=250
-cnn_toy_problem_results_N100_v1.csv: results for 1000 CNN runs, p=0.1, alpha=0.7, N=100, batch size=100 

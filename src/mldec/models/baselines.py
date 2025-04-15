@@ -131,3 +131,20 @@ class MinimumWeightPerfectMatching():
         sigma_logical = self.lookup[error_idx]
         Ypred = sigma_logical[:, self.n-1:]
         return torch.tensor(Ypred)
+
+
+class CyclesMinimumWeightPerfectMatching():
+
+    def __init__(self, detector_error_model,L=3):
+        self.L = L
+        self.n = L ** 2
+        self.matching = Matching.from_detector_error_model(detector_error_model)
+
+    def predict(self, X):
+        """Make predictions for observable flips given a list of detection events.
+        
+        Argse:
+            X: list of detection events, i.e. first returned value of sampler.sample
+        """
+        return self.matching.decode_batch(X)
+
