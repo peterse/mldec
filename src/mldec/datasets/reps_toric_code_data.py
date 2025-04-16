@@ -110,7 +110,7 @@ def sample_dataset(n_data, dataset_config, device):
     mask = syndrome_mask(code_size, repetitions)
     stim_data, observable_flips = sampler.sample(shots=n_data, separate_observables=True)
     non_empty_indices = (np.sum(stim_data, axis = 1) != 0)
-    trivial_count += len(observable_flips[~ non_empty_indices])
+    trivial_count = len(observable_flips[~ non_empty_indices])
     stim_data = stim_data[non_empty_indices, :]
     observable_flips = observable_flips[non_empty_indices]
 

@@ -17,7 +17,7 @@ def main(config):
 	# underlying data distribution. This virtual sampling is done
 	# just-in-time.
 	dataset_module = config.get("dataset_module")
-	toric_exp = "var" # options: var, novar
+	toric_exp = "novar" # options: var, novar
 	if dataset_module == "toy_problem":
 		n = config['n']
 		# this dataset describes what data the model will be evaluated on.
@@ -127,7 +127,7 @@ if __name__ == "__main__":
 		"dataset_module": dataset_module,
 		# Training config: 
 		"max_epochs": 6000,
-		"patience": 300,  
+		"patience": 2000,  
 		"opt": "adam",
 		"mode": mode,
 		"input_dim": input_dim,

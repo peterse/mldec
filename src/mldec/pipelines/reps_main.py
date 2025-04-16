@@ -88,8 +88,8 @@ if __name__ == "__main__":
 		"hyper_config_path": f"{MODEL}_{dataset_module}.yaml",
 		"device": "cpu", 
 		"n": n,
-		"n_train": 100000,
-		"n_test": 100000,
+		"n_train": 100000, # these refer to number of nontrivial examples.
+		"n_test": 100000, # these refer to number of nontrivial examples.
 		"dataset_module": dataset_module,
 		# Training config: 
 		"max_epochs": 2000,
