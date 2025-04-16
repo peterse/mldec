@@ -28,6 +28,8 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     patience = config['patience']
     n = config['n']
     mode = config['mode']
+    # We will allow for direct control of number of batches because of the peculiarity of virtual training
+    # e.g. if we use infinite training data, we need to accommodate by using more "batches".
     n_batches = config.get('n_batches')
     if n_batches is None:
         n_train = config['n_train']

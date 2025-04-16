@@ -30,7 +30,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     patience = config['patience']
     n = config['n']
     mode = config['mode']
-    n_train = config['n_train']
+    n_train = int(config['n_train'])
     n_test = config['n_test']
 
     # dump the hyperparameters
@@ -72,9 +72,9 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     # Baseline accuracies: set up pymatching decoder for validation set; do this directly on stim detection events
     _, _, detector_error_model = dataset_module.make_sampler(validation_dataset_config)
     mwpm_decoder = baselines.CyclesMinimumWeightPerfectMatching(detector_error_model)
-    minimum_weight_val_acc_nontrivial = evaluation.evaluate_mwpm(stim_data_val, observable_flips_val, mwpm_decoder)
-    minimum_weight_val_acc = (minimum_weight_val_acc_nontrivial + triv_val) / n_test
-    log_print("minweight acc: {}".format(minimum_weight_val_acc))
+    minimum_weight_correct_nontrivial = evaluation.evaluate_mwpm(stim_data_val, observable_flips_val, mwpm_decoder).item()
+    minimum_weight_val_acc = (minimum_weight_correct_nontrivial + triv_val) / n_test
+    print("minweight acc: {}".format(minimum_weight_val_acc))
 
     # training loop for model begins:
     t_start = time.time()

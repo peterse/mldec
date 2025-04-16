@@ -97,7 +97,8 @@ def batched_correct_predictions(data_batch, model, device):
 def evaluate_mwpm(stim_data, observable_flips, model):
     """For a flat list of data, compute the number of correct MWPM predictions."""
     predictions = model.predict(stim_data)
-    num_errors = sum(observable_flips ^ predictions)
+    num_errors = sum(observable_flips != predictions)
+    # num_errors = 0
     # for i in range(len(stim_data)):
     #     actual_for_shot = observable_flips[i]
     #     predicted_for_shot = predictions[i]

@@ -104,7 +104,7 @@ def sample_dataset(n_data, dataset_config, device):
     # get the surface code grid:
     mask = syndrome_mask(code_size, repetitions)
     # sample detection events and observable flips
-    stim_data, observable_flips = sampler.sample(shots=n_data, separate_observables=True)
+    stim_data, observable_flips = sampler.sample(shots=int(n_data), separate_observables=True)
     non_empty_indices = (np.sum(stim_data, axis = 1) != 0)
     trivial_count = len(observable_flips[~ non_empty_indices])
     stim_data = stim_data[non_empty_indices, :]
