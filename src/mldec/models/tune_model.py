@@ -20,7 +20,7 @@ def hyper_config_path(path):
 	return os.path.join(path, f"hyper_config.json")
 
 def get_header():
-	return "epoch,train_loss,train_acc,val_loss,val_acc,vs_lookup,vs_minweight"
+	return "job_id,epoch,train_loss,train_acc,val_loss,val_acc,vs_lookup,vs_minweight"
 
 def load_hyperparameters(config_path):
     with open(config_path, 'r') as file:
@@ -55,9 +55,9 @@ class ThreadManager:
 			f.write(get_header() + "\n")
 
 	def report(self, epoch_results):
-		write_str = ""
+		write_str = f"{self.thread_id},"
 		split_header = get_header().split(",")
-		for i, k in enumerate(split_header):
+		for i, k in enumerate(split_header[1:]):
 			write_str += f"{epoch_results[k]}"
 			if i < len(split_header) - 1:
 				write_str += ","
@@ -225,14 +225,15 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 	hyper_keys = list(hyper_config.keys())
 	knob_keys = list(knob_settings.keys())
 	header_keys = get_header().split(",")
-	columns = header_keys + hyper_keys + knob_keys
-	# columns = hyper_keys + header_keys
+	auxiliary_keys = ["job_id", "total_parameters", "total_time", "total_epochs"]
+	columns = header_keys + hyper_keys + knob_keys + auxiliary_keys
 	data = []
 	for i in range(len(all_results)):
 		hyper_setting = [hyper_list[i].get(k) for k in hyper_keys]
 		knob_setting = [knob_list[i].get(k) for k in knob_keys]
 		best_result = [all_results[i].get(k) for k in header_keys]
-		data.append(best_result + hyper_setting + knob_setting)
+		auxiliary_result = [all_results[i].get(k) for k in auxiliary_keys]
+		data.append(best_result + hyper_setting + knob_setting + auxiliary_result)
 	df = pd.DataFrame(data, columns=columns)
 
 	model_name = config.get("model")

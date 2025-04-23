@@ -21,9 +21,11 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     device = torch.device(config.get('device'))
     if manager is not None:
         log_print = manager.log_print
+        job_id = manager.job_id
     else:
         logger = loggingx.get_logger(config.get('log_name'))
         log_print = logger.info
+        job_id = None
 
     max_epochs = config['max_epochs']
     batch_size = config['batch_size']
@@ -124,6 +126,13 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         if epoch == max_epochs - 1:
             log_print("Max epochs reached")
 
+    auxiliary_results = {
+        "job_id": job_id,
+        "total_parameters": tot_params,
+        "total_time": time.time() - t_start,
+        "total_epochs": epoch,
+    }
+    best_results.update(auxiliary_results)
     # return the final results
     return best_results
 
