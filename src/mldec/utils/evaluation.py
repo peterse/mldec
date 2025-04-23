@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import numpy as np
 
 
 class WeightedSequenceLoss(nn.Module):
@@ -77,7 +78,10 @@ def weighted_accuracy_and_loss(model, X, Y, weights, criterion):
     
 
 def batched_correct_predictions(data_batch, model, device):
-    """For a batch of data, compute the number of correct predictions."""
+    """For a batch of data, compute the number of correct predictions.
+    
+    This is specific to the reps_toric_code_data dataset.
+    """
     correct_predictions = 0
     with torch.no_grad():
         for data in data_batch:
@@ -87,4 +91,20 @@ def batched_correct_predictions(data_batch, model, device):
             # Sum correct predictions
             prediction = torch.sigmoid(out.detach()).round().to(int)
             correct_predictions += int( (prediction == target).sum() )
+    return correct_predictions
+
+
+def evaluate_mwpm(stim_data, observable_flips, model):
+    """For a flat list of data, compute the number of correct MWPM predictions."""
+    predictions = model.predict(stim_data)
+    num_errors = sum(observable_flips != predictions)
+    # num_errors = 0
+    # for i in range(len(stim_data)):
+    #     actual_for_shot = observable_flips[i]
+    #     predicted_for_shot = predictions[i]
+    #     # print(actual_for_shot, predicted_for_shot)
+    #     # print(actual_for_shot ^ predicted_for_shot)
+    #     if (actual_for_shot ^ predicted_for_shot) != 0:
+    #         num_errors += 1
+    correct_predictions = len(stim_data) - num_errors
     return correct_predictions

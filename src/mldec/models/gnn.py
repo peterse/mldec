@@ -46,7 +46,6 @@ class RepGNN(nn.Module):
             gcn_layers.append(gcn_layers[-1] * 2)
         for i in range(max_pt, gcn_depth - 1):
             gcn_layers.append(gcn_layers[-1] // 2)
-        print(gcn_layers)
             
         mlp_layers = [mlp_max]
         for i in range((mlp_depth - 1)):

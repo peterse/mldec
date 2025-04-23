@@ -42,46 +42,17 @@ def stim_to_syndrome_3D(mask, coordinates, stim_data):
     return syndrome_3D
 
 
-def generate_batch(stim_data_list,
-                observable_flips_list,
-                detector_coordinates,
-                mask, m_nearest_nodes=None, power=2):
-    '''
-    Generates a batch of graphs from a list of stim experiments.
-    '''
-    batch = []
-
-    for i in range(len(stim_data_list)):
-        # convert to syndrome grid:
-        syndrome = stim_to_syndrome_3D(mask, detector_coordinates, stim_data_list[i])
-        # get the logical equivalence class:
-        true_eq_class = np.array([int(observable_flips_list[i])])
-        # map to graph representation
-        graph = graph_representation.get_3D_graph(syndrome_3D = syndrome,
-                            target = true_eq_class,
-                            power = power,
-                            m_nearest_nodes = m_nearest_nodes)
-        batch.append(graph)
-    return batch
 
 
-def sample_dataset(n_data, dataset_config, device):
-    """Given a dataset config, sample a dataset of size n_data.
+
+def make_sampler(dataset_config):
+    """Create a stim sampler for the detection events in the error model we care about.
     
-    Since a large fraction of data are trivial, we will also keep track
-    of how many 'no error' events were sampled and return this, but otherwise not include such 
-    data in the training set. This procedure allows you to
-    calculate accuracy as
-
-        acc = (correct_predictions_on_data + trivial_count) / n_data
-
     Returns:
-        torch_buffer: A list of torch Data objects, each containing a graph representation 
-            of the data.
-        trivial_count: The number of trivial syndromes in the dataset.
-
+        sampler: stim sampler 
+        detector_coordinates: coordinates of the detectors in the circuit
+        detector_error_model: An error model used to configure the 
     """
-
     repetitions = dataset_config.get("repetitions") # "cycles" of measurement
     code_size = dataset_config.get("code_size")
     p_base = dataset_config.get("p")
@@ -105,16 +76,43 @@ def sample_dataset(n_data, dataset_config, device):
     detector_coordinates[:, : 2] = detector_coordinates[:, : 2] / 2
     detector_coordinates = detector_coordinates.astype(np.uint8)
     sampler = circuit.compile_detector_sampler()
+    detector_error_model = circuit.detector_error_model(decompose_errors=True)
+    return sampler, detector_coordinates, detector_error_model
+
+
+def sample_dataset(n_data, dataset_config, device):
+    """Given a dataset config, sample a dataset of size n_data.
+    
+    Since a large fraction of data are trivial, we will also keep track
+    of how many 'no error' events were sampled and return this, but otherwise not include such 
+    data in the training set. This procedure allows you to
+    calculate accuracy as
+
+        acc = (correct_predictions_on_data + trivial_count) / n_data
+
+    Returns:
+        torch_buffer: A list of torch Data objects, each containing a graph representation 
+            of the data.
+        trivial_count: The number of trivial syndromes in the dataset.
+
+    """
+
+    repetitions = dataset_config.get("repetitions") # "cycles" of measurement
+    code_size = dataset_config.get("code_size")
+    sampler, detector_coordinates, _ = make_sampler(dataset_config)
 
     # get the surface code grid:
     mask = syndrome_mask(code_size, repetitions)
-    stim_data, observable_flips = sampler.sample(shots=n_data, separate_observables=True)
+    # sample detection events and observable flips
+    stim_data, observable_flips = sampler.sample(shots=int(n_data), separate_observables=True)
     non_empty_indices = (np.sum(stim_data, axis = 1) != 0)
     trivial_count = len(observable_flips[~ non_empty_indices])
     stim_data = stim_data[non_empty_indices, :]
     observable_flips = observable_flips[non_empty_indices]
 
-    # This code will let you generate dataset with only nontrivial data...
+    # This code will let you generate dataset with only nontrivial data...but this
+    # is somewhat against the spirit of our project, wherein trivial data are 
+    # a necessary part of the training set
     # factor = max(1/(20*p), 10)
     # shots = int(factor * n_data)
     # stim_data, observable_flips = [], []
@@ -136,10 +134,36 @@ def sample_dataset(n_data, dataset_config, device):
     #     stim_data.extend(new_data)
     #     observable_flips.extend(new_obs)
     #     trivial_count += len(observable_flips_it[~ non_empty_indices])
+    # NOTE: This is the bottleneck of the code; all of the time is spent here.
+    
     buffer = generate_batch(stim_data, observable_flips, detector_coordinates, mask)
-    torch_buffer = dataset_to_torch(buffer, device)
 
-    return torch_buffer, trivial_count
+    torch_buffer = dataset_to_torch(buffer, device)
+    return torch_buffer, trivial_count, stim_data, observable_flips
+
+
+def generate_batch(stim_data_list,
+                   
+                observable_flips_list,
+                detector_coordinates,
+                mask, m_nearest_nodes=None, power=2):
+    '''
+    Generates a batch of graphs from a list of stim experiments.
+    '''
+    batch = []
+
+    for i in range(len(stim_data_list)):
+        # convert to syndrome grid:
+        syndrome = stim_to_syndrome_3D(mask, detector_coordinates, stim_data_list[i])
+        # get the logical equivalence class:
+        true_eq_class = np.array([int(observable_flips_list[i])])
+        # map to graph representation
+        graph = graph_representation.get_3D_graph(syndrome_3D = syndrome,
+                            target = true_eq_class,
+                            power = power,
+                            m_nearest_nodes = m_nearest_nodes)
+        batch.append(graph)
+    return batch
 
 
 def dataset_to_torch(buffer, device):

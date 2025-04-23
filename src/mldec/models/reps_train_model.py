@@ -30,7 +30,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     patience = config['patience']
     n = config['n']
     mode = config['mode']
-    n_train = config['n_train']
+    n_train = int(config['n_train'])
     n_test = config['n_test']
 
     # dump the hyperparameters
@@ -59,33 +59,23 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     for k, v in training_dataset_config.items():
         log_print(f"  {k}: {v}")
 
-
     # n_batches = n_train // batch_size
-    data_tr, triv_tr = dataset_module.sample_dataset(n_train, training_dataset_config, device)
-    data_val, triv_val = dataset_module.sample_dataset(n_test, validation_dataset_config, device)
+    data_tr, triv_tr, _, _ = dataset_module.sample_dataset(n_train, training_dataset_config, device)
+    data_val, triv_val, stim_data_val, observable_flips_val = dataset_module.sample_dataset(n_test, validation_dataset_config, device)
     log_print("generated data")
     log_print("number of trivial training samples: {}".format(triv_tr))
     log_print("number of trivial validation samples: {}".format(triv_val))
     traing_dataloader = DataLoader(data_tr, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(data_val, batch_size=n_test, shuffle=False)
 
-    # we want two things: a lookup table for the training set, and baseline accuracy for training/validation
+    # Baseline accuracies: set up pymatching decoder for validation set; do this directly on stim detection events
+    _, _, detector_error_model = dataset_module.make_sampler(validation_dataset_config)
+    mwpm_decoder = baselines.CyclesMinimumWeightPerfectMatching(detector_error_model)
+    minimum_weight_correct_nontrivial = evaluation.evaluate_mwpm(stim_data_val, observable_flips_val, mwpm_decoder).item()
+    minimum_weight_val_acc = (minimum_weight_correct_nontrivial + triv_val) / n_test
+    log_print("minweight acc: {}".format(minimum_weight_val_acc))
 
-    # Baseline accuracies  TODO
-    # lookup_decoder = baselines.LookupTable()
-    # if config.get("dataset_module") == "toy_problem":
-    #     minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight()
-    # elif config.get("dataset_module") == "toric_code":
-    #     minimum_weight_decoder = baselines.MinimumWeightPerfectMatching()
-    # else:
-    #     raise ValueError("Unknown dataset module")
-    # TODO: BASELINES
-    # lookup_decoder.train_on_histogram(X, Y_no_sos_eos, downsampled_train_weights)
-    # lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y_no_sos_eos, val_weights)
-    # log_print("lookup acc: {}".format(lookup_val_acc))
-    # minimum_weight_decoder.make_decoder(X, Y_no_sos_eos)
-    # minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y_no_sos_eos, val_weights)
-    # log_print("minweight acc: {}".format(minimum_weight_val_acc))
+    # training loop for model begins:
     t_start = time.time()
     for epoch in range(max_epochs):
         train_loss = 0      
@@ -110,10 +100,8 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
                     "train_acc": train_acc,
                     "val_acc": val_acc,
                     "val_loss": 0, # val_loss is not computed
-                    "vs_lookup": val_acc, # TODO
-                    "vs_minweight": val_acc, # TODO
-                    # "vs_lookup": val_acc - lookup_val_acc,
-                    # "vs_minweight": val_acc - minimum_weight_val_acc
+                    "vs_lookup": 0, # TODO
+                    "vs_minweight": val_acc - minimum_weight_val_acc
                 }
             history.append(epoch_results)
             save_str = ""

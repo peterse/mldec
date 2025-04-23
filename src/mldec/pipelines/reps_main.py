@@ -15,8 +15,8 @@ def main(config):
 		n = config['n']
 		# this dataset describes what data the model will be evaluated on.
 		dataset_config = {
-			'p': 0.004,
-			'repetitions': 3,
+			'p': 0.001,
+			'repetitions': 5,
 			'code_size': 3,
 			'beta': 1, # this gets overwritten by the knob settings
 		}
@@ -88,11 +88,11 @@ if __name__ == "__main__":
 		"hyper_config_path": f"{MODEL}_{dataset_module}.yaml",
 		"device": "cpu", 
 		"n": n,
-		"n_train": 100000, # these refer to number of nontrivial examples.
-		"n_test": 100000, # these refer to number of nontrivial examples.
+		# "n_train": 100000, # !OVERWRITE
+		"n_test": 100000,
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 2000,
+		"max_epochs": 10,
 		"patience": 300,  
 		"opt": "adam",
 		"mode": mode,
