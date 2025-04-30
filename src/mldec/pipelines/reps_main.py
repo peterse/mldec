@@ -92,7 +92,7 @@ if __name__ == "__main__":
 		"n_test": 100000,
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 2000,
+		"max_epochs": 20,
 		"patience": 300,  
 		"opt": "adam",
 		"mode": mode,

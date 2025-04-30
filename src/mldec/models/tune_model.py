@@ -40,6 +40,7 @@ class ThreadManager:
 	"""
 	def __init__(self, thread_info):
 		self.thread_id = thread_info.get("thread_id")
+		self.job_id = self.thread_id
 		self.tune_path = thread_info.get("tune_path")  # tune_results/{model}_{dataset}/run_{timestamp}/threads/job_<thread_id>/
 		self.logger_name = thread_info.get("logger_name")
 		self.tune_results_path = make_tune_results_path(self.tune_path)
@@ -56,8 +57,9 @@ class ThreadManager:
 
 	def report(self, epoch_results):
 		write_str = f"{self.thread_id},"
-		split_header = get_header().split(",")
-		for i, k in enumerate(split_header[1:]):
+		# skip the job_id, which is the first column in the header
+		split_header = get_header().split(",")[1:]
+		for i, k in enumerate(split_header):
 			write_str += f"{epoch_results[k]}"
 			if i < len(split_header) - 1:
 				write_str += ","

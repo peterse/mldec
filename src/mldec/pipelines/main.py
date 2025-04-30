@@ -126,7 +126,7 @@ if __name__ == "__main__":
 		"n_batches": 32, # this controls the number of minibatches per epoch, i.e. gradient updates per epoch. This is more useful than total training data.
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 6000,
+		"max_epochs": 60,
 		"patience": 300,  
 		"opt": "adam",
 		"mode": mode,
