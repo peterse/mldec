@@ -12,6 +12,6 @@ knob_settings:
   beta: [1, 2, 3]
 
 settings:
-  total_cpus: 1
-  num_samples: 1
+  total_cpus: 100
+  num_samples: 150
   total_gpus: 0

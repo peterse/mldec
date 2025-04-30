@@ -40,6 +40,7 @@ class ThreadManager:
 	"""
 	def __init__(self, thread_info):
 		self.thread_id = thread_info.get("thread_id")
+		self.job_id = self.thread_id
 		self.tune_path = thread_info.get("tune_path")  # tune_results/{model}_{dataset}/run_{timestamp}/threads/job_<thread_id>/
 		self.logger_name = thread_info.get("logger_name")
 		self.tune_results_path = make_tune_results_path(self.tune_path)
