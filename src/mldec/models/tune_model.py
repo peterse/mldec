@@ -57,8 +57,9 @@ class ThreadManager:
 
 	def report(self, epoch_results):
 		write_str = f"{self.thread_id},"
-		split_header = get_header().split(",")
-		for i, k in enumerate(split_header[1:]):
+		# skip the job_id, which is the first column in the header
+		split_header = get_header().split(",")[1:]
+		for i, k in enumerate(split_header):
 			write_str += f"{epoch_results[k]}"
 			if i < len(split_header) - 1:
 				write_str += ","
