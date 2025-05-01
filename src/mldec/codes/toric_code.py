@@ -144,7 +144,7 @@ def generators_STL_Hx_Hz(L):
 
 
 def build_lst_lookup(L, cache=True):
-    """Build a lookup table labelling errors by (sigma, logical) coset labels
+    """a lookup table that assigns each error a (sigma, logical) coset label
 
     the rows are indexed by binary(error), each column is concatenated [sigma, logical]
 
@@ -190,3 +190,51 @@ def build_lst_lookup(L, cache=True):
     if cache:
         np.save(path, out)
     return out
+
+
+def build_syndrome_probs_and_weight_distr(generators_S, generators_T, generators_L, Hx, Hz, noise_model):
+    """Compute a table of syndrome probabilities, and a table of error weight distribution by syndrome.
+
+    Returns:
+        p_SL: a dictionary mapping (sigma, ell) to the probability of that pair
+        hist_SL_wts: a dictionary mapping (sigma, ell) an (n+1) array of weights, where the ith entry is the 
+            cum. probability of errors in that coset enumerator having weight i
+    """
+
+    p_SL = {}
+    hist_SL_wts = {}
+
+    r = len(generators_S)
+    n = len(generators_S[0])
+    k = n - r
+    assert len(generators_L) == 2*k
+    assert len(generators_T) == r
+    for a, pure_error_lst in enumerate(code_utils.powerset(generators_T)):
+        pure_error = code_utils.operator_sequence_to_stim(pure_error_lst, n)
+        xerr, zerr = pure_error.to_numpy()
+        sigma_z = (Hz @ xerr) % 2
+        sigma_x = (Hx @ zerr) % 2
+        sigma = np.concatenate((sigma_x, sigma_z), axis=0)
+        p_sigma = 0
+        logical_masks = np.array(list(itertools.product([0, 1], repeat=2*k)))
+        for b, logical_mask in enumerate(logical_masks):
+            # to enumerate over the logicals, we want to preserve their order 
+            # as provided in generators_L, as this will determine the binary
+            # mask representing that logical
+            p_SL[(tuple(sigma), tuple(logical_mask))] = 0
+            hist_SL_wts[(tuple(sigma), tuple(logical_mask))] = np.zeros(n+1)
+            logical_op_lst = [generators_L[i] for i, bit in enumerate(logical_mask) if bit]
+            logical_op = code_utils.operator_sequence_to_stim(logical_op_lst, n)
+            for c, stabilizer_lst in enumerate(code_utils.powerset(generators_S)):
+                stabilizer = code_utils.operator_sequence_to_stim(stabilizer_lst, n)
+                error = pure_error * logical_op * stabilizer
+                error_symplectic = np.concatenate(error.to_numpy(), axis=0).astype(int)
+                p_err = noise_model(error_symplectic, n)
+                wt = sum(np.logical_or(error_symplectic[:n], error_symplectic[n:]))
+
+                # increment the probability of this (sigma, ell) pair, and the weight enumerator for this
+                p_SL[(tuple(sigma), tuple(logical_mask))] += p_err
+                hist_SL_wts[(tuple(sigma), tuple(logical_mask))][wt] += p_err
+            
+
+    return p_SL, hist_SL_wts
