@@ -67,7 +67,6 @@ if __name__ == "__main__":
 	# Some notes:
 	# scale up lr with batchsize in general.
 	# patience = early stopping patience, triggered on no improvement in val_acc for `patience` epochs (with checking every X epochs)\
-	# n_train = virtual training samples, i.e. noise in a histogram of the error distribution
 	# !OVERWRITE indiicates a hyperparam that may be overwritten by raytune `hyper_config` or raytune internals
 	# only_good_examples = uniform distribution over good examples
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
@@ -89,11 +88,11 @@ if __name__ == "__main__":
 		"device": "cpu", 
 		"n": n,
 		# "n_train": 100000, # !OVERWRITE
-		"n_test": 100000,
+		"n_test": 1000000,
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 20,
-		"patience": 300,  
+		"max_epochs": 3000,
+		"patience": 100,  
 		"opt": "adam",
 		"mode": mode,
 		"input_dim": input_dim,

@@ -61,7 +61,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     for k, v in training_dataset_config.items():
         log_print(f"  {k}: {v}")
 
-
     # n_batches = n_train // batch_size
     data_tr, triv_tr, _, _ = dataset_module.sample_dataset(n_train, training_dataset_config, device)
     data_val, triv_val, stim_data_val, observable_flips_val = dataset_module.sample_dataset(n_test, validation_dataset_config, device)
@@ -76,7 +75,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     mwpm_decoder = baselines.CyclesMinimumWeightPerfectMatching(detector_error_model)
     minimum_weight_correct_nontrivial = evaluation.evaluate_mwpm(stim_data_val, observable_flips_val, mwpm_decoder).item()
     minimum_weight_val_acc = (minimum_weight_correct_nontrivial + triv_val) / n_test
-    print("minweight acc: {}".format(minimum_weight_val_acc))
+    log_print("minweight acc: {}".format(minimum_weight_val_acc))
 
     # training loop for model begins:
     t_start = time.time()

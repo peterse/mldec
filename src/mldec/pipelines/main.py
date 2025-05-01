@@ -17,7 +17,7 @@ def main(config):
 	# underlying data distribution. This virtual sampling is done
 	# just-in-time.
 	dataset_module = config.get("dataset_module")
-	toric_exp = "var" # options: var, novar
+	toric_exp = "novar" # options: var, novar
 	if dataset_module == "toy_problem":
 		n = config['n']
 		# this dataset describes what data the model will be evaluated on.
@@ -103,8 +103,9 @@ if __name__ == "__main__":
 	# # # important stuff # # # # # # # # # 
 	only_good_examples = False
 	mode = "tune" # options: train, tune
-	dataset_module = "toric_code" # options: toy_problem, toric_code
-	MODEL = "transformer" # options: cnn, transformer
+	# dataset_module = "toric_code" # options: toy_problem, toric_code
+	dataset_module = "toy_problem" # options: toy_problem, toric_code
+	MODEL = "ffnn" # options: cnn, transformer
 	# # # # # # # ## # # # # # # # # # # # # 
 
 	if dataset_module == "toy_problem":
@@ -123,11 +124,13 @@ if __name__ == "__main__":
 		"device": "cpu", 
 		"n": n,
 		"only_good_examples": only_good_examples, 
-		"n_batches": 32, # this controls the number of minibatches per epoch, i.e. gradient updates per epoch. This is more useful than total training data.
+		# n_batches controls the number of minibatches per epoch, i.e. gradient updates per epoch. 
+		# Total training data is n_batches * batch_size.
+		"n_batches": 8, 
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 60,
-		"patience": 300,  
+		"max_epochs": 10000,
+		"patience": 600,  
 		"opt": "adam",
 		"mode": mode,
 		"input_dim": input_dim,
@@ -140,9 +143,9 @@ if __name__ == "__main__":
 	if config.get("model") == "ffnn":
 		model_config = {
 			"model": "ffnn",
-			"hidden_dim": 16, # !OVERWRITE
-			"n_layers": 3, # !OVERWRITE
-			"dropout": 0, # !OVERWRITE
+			# "hidden_dim": 16, # !OVERWRITE
+			# "n_layers": 3, # !OVERWRITE
+			# "dropout": 0, # !OVERWRITE
 		}
 	elif config.get("model") == "cnn":
 		model_config = {

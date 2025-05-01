@@ -1,17 +1,17 @@
 model_type: gnn
 hyperparameters:
-  lr: [0.0001, 0.0002, 0.0003]
+  lr: [ 0.0002, 0.0003, 0.0004]
   batch_size: [512, 1024]
-  gcn_depth: [5, 6, 7]
+  gcn_depth: [4, 5, 6]
   gcn_min: [32, 64]
   mlp_depth: [3, 4]
-  mlp_max: [128, 256]
-  n_train: [10000]
+  mlp_max: [128]
+  n_train: [1048576, 2097152, 4194304, 8388608]
 
 knob_settings:
-  beta: [1, 2]
+  beta: [1, 2, 3]
 
 settings:
-  total_cpus: 2
-  num_samples: 2
+  total_cpus: 50
+  num_samples: 100
   total_gpus: 0
