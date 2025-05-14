@@ -1,4 +1,6 @@
-"""Note: code is heavily borrowed from the GNN implementation https://arxiv.org/pdf/2307.01241."""
+"""Note: code is heavily borrowed from the GNN implementation https://arxiv.org/pdf/2307.01241.
+    Copyright (c) 2023 Moritz Lange (MIT License)
+"""
 import numpy as np
 import stim
 from torch_geometric.loader import DataLoader

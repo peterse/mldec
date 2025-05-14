@@ -1,5 +1,5 @@
 
-"""notice: Much of this code is heavily ripped from https://github.com/LangeMoritz/GNN_decoder/tree/main"""
+"""GNN code."""
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -87,6 +87,8 @@ class RepGNN(nn.Module):
 class GNN_flexible(torch.nn.Module):
     '''
     Heavily borrowed from Moritz Lange's GNN implementation https://arxiv.org/pdf/2307.01241.
+    
+    Copyright (c) 2023 Moritz Lange (MIT License)
 
     GNN with a flexible number of GraphConv layers, whose final output is converted
     to a single graph embedding (feature vector) with global_mean_pool.

@@ -1,4 +1,6 @@
-'''Notice - this code is copied from https://github.com/LangeMoritz/GNN_decoder/blob/main/src/graph_representation.py'''
+'''Notice - this code is copied from https://github.com/LangeMoritz/GNN_decoder/blob/main/src/graph_representation.py 
+    Copyright (c) 2023 Moritz Lange (MIT License)
+'''
 import numpy as np
 
 def get_node_list_3D(syndrome_3D):
