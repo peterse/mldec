@@ -14,4 +14,4 @@ Each file has a `mode` ("train" or "tune"), `dataset_module` (to determine the t
 
 #### Generating figures
 
-Notebooks for generating all figures are in `src/mldec/analysis`.
+Notebooks for generating all figures are in `src/mldec/analysis`. All of the post-processed data are in that directory
