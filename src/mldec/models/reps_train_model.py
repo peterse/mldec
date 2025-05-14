@@ -2,7 +2,6 @@
 
 import torch
 from torch_geometric.data import DataLoader
-import numpy as np
 import copy
 import time
 

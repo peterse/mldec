@@ -15,15 +15,11 @@ def estimate_mwpm_error(dataset_config, n_test):
     stim_data_val = stim_data[non_empty_indices, :]
     observable_flips_val = observable_flips[non_empty_indices]
 
-    # code for verification purposes only:
+    # code from stim tutorial for verification purposes only:
     # # Configure a decoder using the circuit.
     # # detector_error_model = circuit.detector_error_model(decompose_errors=True)
     # matcher = pymatching.Matching.from_detector_error_model(detector_error_model)
-
-    # # Run the decoder.
     # predictions = matcher.decode_batch(stim_data_val)
-
-    # # Count the mistakes.
     # num_errors = 0
     # for shot in range(len(stim_data_val)):
     #     actual_for_shot = observable_flips_val[shot]

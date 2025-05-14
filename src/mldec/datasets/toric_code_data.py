@@ -229,6 +229,7 @@ def make_variance_noise_model(n, config, return_probs=False):
     # alpha = config.get('alpha')
     var = config.get('var')
     beta = config.get('beta')
+
     # Explanation:
     # we want to train many models on the same underlying error model so that the 
     # variance in performance is due to model randomness rather than some weird
@@ -236,7 +237,7 @@ def make_variance_noise_model(n, config, return_probs=False):
     # BUT we cannot use np.seed, e.g.
     #    np.random.seed(222)
     #   p_samp = np.random.normal(p, var, size=n)
-    # the problem is that this will poison our training set sampling downstream! 
+    # the problem is that this will seed our training set sampling downstream!!!
     # this function gets called in a training set sampler, which means we pre-seed
     # a random sampling of training examples from a noise model which is itself
     # nonrandom. The solution is to generate a specific noise model with the 

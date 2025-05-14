@@ -73,22 +73,6 @@ def noise_model(s, n, dataset_config, permute=None, numpy=False):
     return torch.multiply(p_first, p_second)
 
 
-# def sample_bitstring_v1(n, p1, p2, n_data):
-#     """Sample bitstrings from the biased bitflip model v1.
-    
-#     Args:
-#         n: number of bits
-#         p1, p2: bitflip probabilities for the first and second half of the bits
-#         n_data: number of samples to generate
-    
-#     Returns:
-#         (n_data, n) array of bitstrings
-#     """
-#     assert n % 2 == 0
-#     bitstrings = np.random.rand(n_data, n) < np.concatenate([p1*np.ones(n//2), p2*np.ones(n//2)])
-#     return bitstrings
-
-
 def optimal_decoding(n, p1, p2):
     """brute-force compute the optimal decoding success probability for this biased bitflip model."""
     X, Y = create_dataset(n)
@@ -101,8 +85,6 @@ def optimal_decoding(n, p1, p2):
         else:
             lookup[tuple(x)] = w
     return sum(lookup.values())
-
-
 
 
 def sample_virtual_XY(probs, m, n, dataset_config):
@@ -126,8 +108,6 @@ def sample_virtual_XY(probs, m, n, dataset_config):
 
     """
     H = dataset_config['pcm']
-
-
     hist = tools.sample_histogram(probs, m) 
     base = binarr(n)
 

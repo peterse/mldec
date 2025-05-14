@@ -4,16 +4,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import torch
-import numpy as np
-import os
-import time
-
 from torch_geometric.nn import global_mean_pool, GraphConv
-
-import itertools
-import gc
-import stim
-from mldec.utils.graph_representation import get_3D_graph
 
 
 class RepGNN(nn.Module):
