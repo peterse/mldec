@@ -167,30 +167,6 @@ class BinarySeq2Seq(nn.Module):
 	
 
 
-	# def evaluator(self, source, targets, weights=None):
-	# 	"""The accuracy per row is 1 if every single bit is correct, zero otherwise.
-		
-	# 	We ignore the SOS and EOS tokens in the evaluation.
-
-	# 	weights: this will be used to weight the accuracy of each example in the 
-	# 	contribution to the final accuracy, e.g. when the number of bits is small.
-	# 	"""
-	# 	self.optimizer.zero_grad()
-	# 	preds = self.predict(source)
-	# 	Y_pred = preds[:, 1:-1] # remove SOS, EOS
-	# 	Y = targets[:, 1:-1] # remove SOS, EOS
-	# 	diff = (Y_pred + Y) % 2
-	# 	correct = diff.sum(axis=1) == 0
-
-	# 	if weights is not None:
-	# 		correct = torch.multiply(correct, weights)
-
-	# 	# print("weighted correct", correct, weights)
-	# 	# raise(Exception("stop"))
-	# 	acc = correct.sum()/len(correct)
-	# 	return acc    
-
-
 class EncoderDecoderTransformer(nn.Module):
 	"""from https://pytorch.org/tutorials/beginner/translation_transformer.html"""
 	def __init__(self, num_encoder_layers, num_decoder_layers, d_model, nhead, src_vocab_size, tgt_vocab_size,

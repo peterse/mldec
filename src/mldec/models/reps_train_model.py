@@ -86,9 +86,9 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             train_loss += loss.item()
             correct_nontrivial_preds_tr += correct_nontrivial_preds_tr_batch
         train_loss /= len(traing_dataloader) # average loss over batches
+
         # Compute accuracies as (correct predictions + trivial count) / (n_data + trivial count)
         train_acc = (correct_nontrivial_preds_tr + triv_tr) / n_train
-
         if (epoch % 10) == 0:
             # Compute accuracies: Happens every 10 epochs
             model_wrapper.model.eval()        
@@ -119,7 +119,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         early_stopping(train_loss, model_wrapper.model)
         if early_stopping.early_stop:
             log_print("Early stopping")
-            # raise GetOutOfLoop
             break
 
         if epoch == max_epochs - 1:

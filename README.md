@@ -1,48 +1,17 @@
-# ML Decoder Experiment Monitor
+# Codebase for "Example importance for data-driven decoding"
 
-A Streamlit dashboard for monitoring ML decoder training experiments.
+#### Installation
 
-## Features
+You will need to install the `mldec` python package locally. From this directory, call `python -m pip install -e .`
 
-- View all experiments, runs, and jobs in a hierarchical structure
-- Track completion status for runs and jobs
-- View performance metrics from completed runs
-- Visualize metrics through interactive charts
-- See summary statistics across all experiments
+#### Running experiments
 
-## Installation
+The two main experiment scripts are:
+ - `mldec/pipelines/main` (repetition code and surface code DDD with FNN, CNN, transformer) 
+ - `mldec/pipelines/reps_main` (Detector DDD with GNN).
 
-1. Ensure you have Python 3.8+ installed
-2. Install dependencies:
+Each file has a `mode` ("train" or "tune"), `dataset_module` (to determine the type of experiment), `MODEL` to determine the architecture, and a `config` dictionary that specifies fixed run parameters. If in train mode, you can specify all `config` entries to run a specific experiment with the above options. In tune mode, you can specify sets of hyperparameters and dataset parameters to use for large parallel-processing runs using a yaml configuration file in `mldec/hyper_config`. Further instructions are provided in `mldec/pipelines/README.md`.
 
-```bash
-pip install -r requirements.txt
-```
+#### Generating figures
 
-## Usage
-
-Run the Streamlit app:
-
-```bash
-streamlit run app.py
-```
-
-This will start the dashboard and automatically open it in your default web browser.
-
-## Dashboard Structure
-
-- **Top-level metrics**: Summary of experiments, completed and running runs
-- **Experiment tabs**: Each experiment has its own tab showing:
-  - Runs with timestamp and completion status
-  - Progress bars for job completion
-  - Detailed job status tables
-  - Results from completed runs with visualizations
-
-## Path Configuration
-
-The dashboard is configured to look at the following path:
-```
-C:\Users\peter\Desktop\projects\mldec\src\mldec\tune_results
-```
-
-To change this path, edit the `RESULTS_DIR` variable in `app.py`. 
+Notebooks for generating all figures are in `src/mldec/analysis`.

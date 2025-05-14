@@ -108,7 +108,7 @@ def sample_dataset(n_data, dataset_config, device):
 
     # This code will let you generate dataset with only nontrivial data...but this
     # is somewhat against the spirit of our project, wherein trivial data are 
-    # a necessary part of the training set
+    # a natural part of the training set
     # factor = max(1/(20*p), 10)
     # shots = int(factor * n_data)
     # stim_data, observable_flips = [], []
@@ -130,8 +130,8 @@ def sample_dataset(n_data, dataset_config, device):
     #     stim_data.extend(new_data)
     #     observable_flips.extend(new_obs)
     #     trivial_count += len(observable_flips_it[~ non_empty_indices])
+
     # NOTE: This is the bottleneck of the code; all of the time is spent here.
-    
     buffer = generate_batch(stim_data, observable_flips, detector_coordinates, mask)
 
     torch_buffer = dataset_to_torch(buffer, device)

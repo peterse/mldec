@@ -42,18 +42,15 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         n_train = n_batches * batch_size
     log_print("Training on {} total data with {} batches of size {}".format(n_train, n_batches, batch_size))
 
-    # dump the hyperparameters
     log_print(f"Hyperparameters:")
     for k, v in config.items():
         log_print(f"  {k}: {v}")
 
     history = []    
     criterion = evaluation.WeightedSequenceLoss(torch.nn.BCEWithLogitsLoss)
-
     optimizer, scheduler = training.initialize_optimizer(config, model_wrapper.model.parameters())
     early_stopping = training.EarlyStopping(patience=patience) 
     max_val_acc = -1
-
     tot_params, trainable_params = initialize.count_parameters(model_wrapper.model)
     log_print(f"Training model {config.get('model')} with {tot_params} total parameters, {trainable_params} trainable.")
     
@@ -72,6 +69,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     log_print(f"Training dataset config:")
     for k, v in training_dataset_config.items():
         log_print(f"  {k}: {v}")
+
     # Virtual TRAINING: We don't actually need datasets to train the model. Instead,
     # we sample data ccording to the known probability distribution, and then reweight the loss
     # according to a histogram of that sample. The loss re-weighting is O(2^nbits) so this is
@@ -144,10 +142,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             train_loss += loss.item()
         train_loss = train_loss / n_batches
 
-
-        # if config.get('opt') == 'sgd':
-        #     scheduler.step(val_acc)
-
         # We only do accuracy and loss checks every 10 epochs
         if (epoch % 10) == 0:
             # Virtual Validation: Happens every 10 epochs; on whatever dataset we get.
@@ -163,7 +157,7 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
                 val_acc, val_loss = evaluation.weighted_accuracy_and_loss(model_wrapper, X, Y, val_weights, criterion)
             train_acc = evaluation.weighted_accuracy(model_wrapper, X, Y, downsampled_train_weights_tensor)
 
-            # DEBUG for encdec
+            # optional DEBUG for encoder-decoder models
             # tgt_input = Y[:, :-1] # shape [batch, output_len - 1]
             # tgt_out = Y[:, 1:] # shape [batch, output_len - 1]
             # model_out = model_wrapper.model(X, tgt_input)
@@ -173,13 +167,13 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
             #     if w > 0:
             #         print(y, ypred)
             # print()
-
             # print("prediction comparison:")
             # Y_pred = model_wrapper.predict(X)
             # for y, ypred, w in zip(Y, Y_pred, weights):
             #     if w > 0:
             #         print(y, ypred)
             # reporting every 10 epochs
+
             epoch_results = {
                     "epoch": epoch,
                     "train_loss": train_loss,
@@ -203,7 +197,6 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         early_stopping(val_loss, model_wrapper.model)
         if early_stopping.early_stop:
             log_print("Early stopping")
-            # raise GetOutOfLoop
             break
 
         if mode == 'verify' and np.allclose(val_acc, 1.0) and np.allclose(train_acc, 1.0):
@@ -221,5 +214,4 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         "total_epochs": epoch,
     }
     best_results.update(auxiliary_results)
-    # return the final results
     return best_results
