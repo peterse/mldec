@@ -1,3 +1,4 @@
+"""Note: code is heavily borrowed from the GNN implementation https://arxiv.org/pdf/2307.01241."""
 import numpy as np
 import stim
 from torch_geometric.loader import DataLoader
@@ -42,9 +43,6 @@ def stim_to_syndrome_3D(mask, coordinates, stim_data):
     return syndrome_3D
 
 
-
-
-
 def make_sampler(dataset_config):
     """Create a stim sampler for the detection events in the error model we care about.
     
@@ -69,8 +67,6 @@ def make_sampler(dataset_config):
                 before_round_data_depolarization = p)
     # get detector coordinates (same for all error rates):
     detector_coordinates = circuit.get_detector_coordinates()
-    # get coordinates of detectors (divide by 2 because stim labels 2d grid points)
-    # coordinates are of type (d_west, d_north, hence the reversed order)
     detector_coordinates = np.array(list(detector_coordinates.values()))
     # rescale space like coordinates:
     detector_coordinates[:, : 2] = detector_coordinates[:, : 2] / 2
@@ -143,7 +139,6 @@ def sample_dataset(n_data, dataset_config, device):
 
 
 def generate_batch(stim_data_list,
-                   
                 observable_flips_list,
                 detector_coordinates,
                 mask, m_nearest_nodes=None, power=2):

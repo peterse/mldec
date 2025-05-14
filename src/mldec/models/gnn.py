@@ -95,7 +95,7 @@ class RepGNN(nn.Module):
 
 class GNN_flexible(torch.nn.Module):
     '''
-    Heavily ripped from Moritz Lange's GNN implementation.
+    Heavily borrowed from Moritz Lange's GNN implementation https://arxiv.org/pdf/2307.01241.
 
     GNN with a flexible number of GraphConv layers, whose final output is converted
     to a single graph embedding (feature vector) with global_mean_pool.

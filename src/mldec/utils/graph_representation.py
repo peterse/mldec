@@ -1,4 +1,4 @@
-'''Notice - this file is ripped from https://github.com/LangeMoritz/GNN_decoder/blob/main/src/graph_representation.py'''
+'''Notice - this code is copied from https://github.com/LangeMoritz/GNN_decoder/blob/main/src/graph_representation.py'''
 import numpy as np
 
 def get_node_list_3D(syndrome_3D):
@@ -33,9 +33,8 @@ def get_node_feature_matrix(defects, defect_indices_triple, num_node_features = 
     # and defect_indices_tuple (indices in 3D syndrome) of the syndrome matrix
    
     num_defects = defects.shape[0]
-
     defect_indices_triple = np.transpose(np.array(defect_indices_triple))
-
+    
     # get indices of x and z type defects, resp. 
     x_defects = (defects == 1)
     z_defects = (defects == 3)
