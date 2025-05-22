@@ -6,12 +6,12 @@ hyperparameters:
   gcn_min: [32, 64]
   mlp_depth: [3, 4]
   mlp_max: [128]
-  n_train: [1048576, 2097152, 4194304, 8388608]
+  n_train: [1048576]
 
 knob_settings:
-  beta: [1, 2, 3]
+  beta: [4, 5, 6, 7]
 
 settings:
-  total_cpus: 50
-  num_samples: 100
+  total_cpus: 60
+  num_samples: 60
   total_gpus: 0
