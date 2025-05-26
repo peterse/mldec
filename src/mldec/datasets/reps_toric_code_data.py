@@ -73,12 +73,14 @@ def make_sampler(dataset_config):
     # rescale space like coordinates:
     detector_coordinates[:, : 2] = detector_coordinates[:, : 2] / 2
     detector_coordinates = detector_coordinates.astype(np.uint8)
-    sampler = circuit.compile_detector_sampler()
-    detector_error_model = circuit.detector_error_model(decompose_errors=True)
+    sampler = circuit.compile_detector_sampler() # CompiledDetectorSampler
+    detector_error_model = circuit.detector_error_model(decompose_errors=True) # DetectorErrorModel
+    # the detector error model converts the underlying error behavior
+    # into an error behavior acting on the detectors
     return sampler, detector_coordinates, detector_error_model
 
 
-def sample_dataset(n_data, dataset_config, device):
+def sample_dataset(n_data, dataset_config, device, seed=None):
     """Given a dataset config, sample a dataset of size n_data.
     
     Since a large fraction of data are trivial, we will also keep track
@@ -102,7 +104,7 @@ def sample_dataset(n_data, dataset_config, device):
     # get the surface code grid:
     mask = syndrome_mask(code_size, repetitions)
     # sample detection events and observable flips
-    stim_data, observable_flips = sampler.sample(shots=int(n_data), separate_observables=True)
+    stim_data, observable_flips = sampler.sample(shots=int(n_data), separate_observables=True, seed=seed)
     non_empty_indices = (np.sum(stim_data, axis = 1) != 0)
     trivial_count = len(observable_flips[~ non_empty_indices])
     stim_data = stim_data[non_empty_indices, :]
