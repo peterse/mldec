@@ -1,4 +1,4 @@
-# Codebase for "Example importance for data-driven decoding"
+# Codebase for "Sample importance for data-driven decoding"
 
 #### Installation
 
