@@ -45,7 +45,7 @@ def stim_to_syndrome_3D(mask, coordinates, stim_data):
     return syndrome_3D
 
 
-def make_sampler(dataset_config):
+def make_sampler(dataset_config, seed=None):
     """Create a stim sampler for the detection events in the error model we care about.
     
     Returns:
@@ -73,7 +73,7 @@ def make_sampler(dataset_config):
     # rescale space like coordinates:
     detector_coordinates[:, : 2] = detector_coordinates[:, : 2] / 2
     detector_coordinates = detector_coordinates.astype(np.uint8)
-    sampler = circuit.compile_detector_sampler() # CompiledDetectorSampler
+    sampler = circuit.compile_detector_sampler(seed=seed) # CompiledDetectorSampler
     detector_error_model = circuit.detector_error_model(decompose_errors=True) # DetectorErrorModel
     # the detector error model converts the underlying error behavior
     # into an error behavior acting on the detectors
@@ -99,12 +99,12 @@ def sample_dataset(n_data, dataset_config, device, seed=None):
 
     repetitions = dataset_config.get("repetitions") # "cycles" of measurement
     code_size = dataset_config.get("code_size")
-    sampler, detector_coordinates, _ = make_sampler(dataset_config)
+    sampler, detector_coordinates, _ = make_sampler(dataset_config, seed=seed)
 
     # get the surface code grid:
     mask = syndrome_mask(code_size, repetitions)
     # sample detection events and observable flips
-    stim_data, observable_flips = sampler.sample(shots=int(n_data), separate_observables=True, seed=seed)
+    stim_data, observable_flips = sampler.sample(shots=int(n_data), separate_observables=True)
     non_empty_indices = (np.sum(stim_data, axis = 1) != 0)
     trivial_count = len(observable_flips[~ non_empty_indices])
     stim_data = stim_data[non_empty_indices, :]
