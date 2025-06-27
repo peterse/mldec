@@ -33,13 +33,22 @@ def stim_to_syndrome_3D(mask, coordinates, stim_data):
     Converts a stim detection event array to a syndrome grid. 
     1 indicates a violated X-stabilizer, 3 a violated Z stabilizer. 
     Only the difference between two subsequent cycles is stored.
+
+    The first dimension is time-step t. t=0 is the first set of detections,
+    then t=1,...,repetitions-1 is a total of (repetitions-1) detector flips, 
+    and then t=repetitions is the final flip since we get one extra timestep 
+    of detectors in the final readout. This gives a first dimension of
+              1 + (repetitions-1) + 1 = repetitions + 1
+
     '''
     # initialize grid:
     syndrome_3D = np.zeros_like(mask)
     # first to last time-step:
+    # pseudocode: for i in range(num_detectors): syndrome_3D[x_i, y_i, t_i] = detection[i])
     syndrome_3D[coordinates[:, 1], coordinates[:, 0], coordinates[:, 2]] = stim_data
     # only store the difference in two subsequent syndromes:
-    syndrome_3D[:, :, 1:] = (syndrome_3D[:, :, 1:] - syndrome_3D[:, :, 0: - 1]) % 2
+    # "timesteps 1,2,...T-1 minus timesteps 0,1,...T-2"
+    syndrome_3D[:, :, 1:] = (syndrome_3D[:, :, 1:] - syndrome_3D[:, :, 0:-1]) % 2
     # convert X (Z) stabilizers to 1(3) entries in the matrix
     syndrome_3D[np.nonzero(syndrome_3D)] = mask[np.nonzero(syndrome_3D)]
     return syndrome_3D
@@ -150,7 +159,6 @@ def generate_batch(stim_data_list,
     Generates a batch of graphs from a list of stim experiments.
     '''
     batch = []
-
     for i in range(len(stim_data_list)):
         # convert to syndrome grid:
         syndrome = stim_to_syndrome_3D(mask, detector_coordinates, stim_data_list[i])
@@ -166,7 +174,7 @@ def generate_batch(stim_data_list,
 
 
 def dataset_to_torch(buffer, device):
-    # convert list of numpy arrays to torch Data object containing torch GPU tensors
+    # convert list of numpy arrays to torch Data object containing torch tensors
     batch = []
     for i in range(len(buffer)):
         X = torch.from_numpy(buffer[i][0]).to(device)

@@ -108,3 +108,7 @@ def evaluate_mwpm(stim_data, observable_flips, model):
     #         num_errors += 1
     correct_predictions = len(stim_data) - num_errors
     return correct_predictions
+
+
+def compute_total_influence(model, n):
+    """Compute the boolean influence of """ 

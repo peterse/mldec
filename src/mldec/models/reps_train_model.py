@@ -10,12 +10,15 @@ from mldec.models import initialize, baselines
 from mldec.pipelines import loggingx
 
 
-def train_model(model_wrapper, dataset_module, config, validation_dataset_config, knob_settings, manager=None):
+def train_model(model_wrapper, dataset_module_str, config, validation_dataset_config, knob_settings, manager=None):
 
     # de-serializing the dataset module (for pickling purposes)
-    if dataset_module == "reps_toric_code":
+    if dataset_module_str == "reps_toric_code":
         from mldec.datasets import reps_toric_code_data
         dataset_module = reps_toric_code_data
+    elif dataset_module_str == "reps_exp_rep_code":
+        from mldec.datasets import reps_exp_rep_code_data
+        dataset_module = reps_exp_rep_code_data
 
     device = torch.device(config.get('device'))
     if manager is not None:
@@ -61,8 +64,19 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
         log_print(f"  {k}: {v}")
 
     # n_batches = n_train // batch_size
-    data_tr, triv_tr, _, _ = dataset_module.sample_dataset(n_train, training_dataset_config, device)
-    data_val, triv_val, stim_data_val, observable_flips_val = dataset_module.sample_dataset(n_test, validation_dataset_config, device)
+    if dataset_module_str == "reps_toric_code":
+        # This is the stim simulated experiments path
+        data_tr, triv_tr, _, _ = dataset_module.sample_dataset(n_train, training_dataset_config, device)
+        data_val, triv_val, stim_data_val, observable_flips_val = dataset_module.sample_dataset(n_test, validation_dataset_config, device)
+    elif dataset_module_str == "reps_exp_rep_code":
+        # this is for (simulated) experimental data that was already generated.
+        data_tr, triv_tr, _ = dataset_module.sample_dataset(n_train, training_dataset_config, device)
+        # the validation data from experiments is coded as beta=0
+        assert validation_dataset_config.get("beta") == 0, "Validation dataset config must have beta=0 for experimental data"
+        data_val, triv_val, observable_flips_val = dataset_module.sample_dataset(n_test, validation_dataset_config, device)
+    else:
+        raise ValueError("Unknown dataset module")
+    
     log_print("generated data")
     log_print("number of trivial training samples: {}".format(triv_tr))
     log_print("number of trivial validation samples: {}".format(triv_val))
@@ -70,11 +84,16 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     val_dataloader = DataLoader(data_val, batch_size=n_test, shuffle=False)
 
     # Baseline accuracies: set up pymatching decoder for validation set; do this directly on stim detection events
-    _, _, detector_error_model = dataset_module.make_sampler(validation_dataset_config)
-    mwpm_decoder = baselines.CyclesMinimumWeightPerfectMatching(detector_error_model)
-    minimum_weight_correct_nontrivial = evaluation.evaluate_mwpm(stim_data_val, observable_flips_val, mwpm_decoder).item()
-    minimum_weight_val_acc = (minimum_weight_correct_nontrivial + triv_val) / n_test
-    log_print("minweight acc: {}".format(minimum_weight_val_acc))
+    if dataset_module_str == "reps_toric_code":
+        _, _, detector_error_model = dataset_module.make_sampler(validation_dataset_config)
+        mwpm_decoder = baselines.CyclesMinimumWeightPerfectMatching(detector_error_model)
+        minimum_weight_correct_nontrivial = evaluation.evaluate_mwpm(stim_data_val, observable_flips_val, mwpm_decoder).item()
+        minimum_weight_val_acc = (minimum_weight_correct_nontrivial + triv_val) / n_test
+        log_print("minweight acc: {}".format(minimum_weight_val_acc))
+    elif dataset_module_str == "reps_exp_rep_code":
+        # FIXME: implement this
+        minimum_weight_val_acc = 999
+        log_print("minweight acc: {}".format(minimum_weight_val_acc))
 
     # training loop for model begins:
     t_start = time.time()

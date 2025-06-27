@@ -66,8 +66,9 @@ class RepGNN(nn.Module):
         data.batch = data.batch.to(self.device)
         out = self.model(data.x, data.edge_index, data.edge_attr, data.batch)
         target = data.y.to(int)
-        # print(f"target: {target.reshape(-1)}")
-        # print(f"out: {out.reshape(-1)}")
+        if out.shape != target.shape:
+            print(" there is some kind of shape mismatch, I need to inspect my data carefully and also compare 1-to-1 what datastructure is here in the toric code data.")
+            import pdb; pdb.set_trace()
         loss = criterion(out, data.y)
         prediction = (torch.sigmoid(out.detach()) > 0.5).to(self.device).long()
         correct_predictions = int((prediction == target).sum().item())

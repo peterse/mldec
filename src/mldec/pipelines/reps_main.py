@@ -18,7 +18,13 @@ def main(config):
 			'p': 0.001,
 			'repetitions': 5,
 			'code_size': 3,
-			'beta': 1, # this gets overwritten by the knob settings
+			'beta': 1, # this gets overwritten by the knob settings, i.e. .yaml file.
+		}
+	elif dataset_module == "reps_exp_rep_code":
+		dataset_config = {
+			'code_size': 5,
+			'repetitions': 5,
+			'beta': 0, # this '0' indicates experimental validiation data. To train with beta=1, set knob_config elsewhere.
 		}
 	else:
 		raise ValueError("Unknown dataset module")
@@ -60,6 +66,7 @@ def main(config):
 			delete_intermediate_dirs=False)
 	else:
 		model_wrapper = initialize.initialize_model(config)
+		knob_settings = {'beta': 1}
 		reps_train_model.train_model(model_wrapper, dataset_module, config, dataset_config, knob_settings)
 
 if __name__ == "__main__":
@@ -72,23 +79,28 @@ if __name__ == "__main__":
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 
 	# # # important stuff # # # # # # # # # 
-	mode = "tune" # options: train, tune
-	dataset_module = "reps_toric_code" # options: reps_toric_code
+	mode = "train" # options: train, tune
+	dataset_module = "reps_exp_rep_code" # options: reps_toric_code, reps_exp_rep_code
 	MODEL = "gnn" # options: gnn
 	# # # # # # # ## # # # # # # # # # # # # 
 	if dataset_module == "reps_toric_code":
 		# FIXME
 		n = 8
-		input_dim = 5 # 5-dimensional vectors to represent graph coordinates
+		input_dim = 5 # (is_x, is_z, row, col, t) coordinates of faults
 		output_dim = 1 # binary clf
+	elif dataset_module == "reps_exp_rep_code":
+		n = None
+		input_dim = 2 # (x, t) coordinates of faults
+		output_dim = 1
+
 
 	config = {
 		"model" : MODEL,
 		"hyper_config_path": f"{MODEL}_{dataset_module}.yaml",
 		"device": "cpu", 
 		"n": n,
-		# "n_train": 100000, # !OVERWRITE
-		"n_test": 1000000,
+		"n_train": 2000, # !OVERWRITE
+		"n_test": 2000,
 		"dataset_module": dataset_module,
 		# Training config: 
 		"max_epochs": 3000,
@@ -97,18 +109,18 @@ if __name__ == "__main__":
 		"mode": mode,
 		"input_dim": input_dim,
 		"output_dim": output_dim,
-		# "lr": 0.003, # !OVERWRITE
-		# "batch_size": 250, # !OVERWRITE
-		# "dropout": 0.05, # 
+		"lr": 0.003, # !OVERWRITE
+		"batch_size": 128, # !OVERWRITE
+		"dropout": 0.05, # 
 	}
 
 	if config.get("model") == "gnn":
 		model_config = {
 			"model": "gnn",
-			# "gcn_depth": 5,# !OVERWRITE
-			# "gcn_min": 32,# !OVERWRITE
-			# "mlp_depth": 3,# !OVERWRITE
-			# "mlp_max": 64,# !OVERWRITE
+			"gcn_depth": 5,# !OVERWRITE
+			"gcn_min": 32,# !OVERWRITE
+			"mlp_depth": 3,# !OVERWRITE
+			"mlp_max": 64,# !OVERWRITE
 		}
 
 
