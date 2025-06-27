@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+title: Code for "Sample importance for data-driven decoding"
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Evan
+    family-names: Peters
+    email: peterse583@gmail.com
+repository-code: 'https://github.com/peterse/mldec'
