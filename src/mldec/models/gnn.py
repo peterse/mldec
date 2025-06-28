@@ -56,7 +56,7 @@ class RepGNN(nn.Module):
         
     def training_step(self, data, optimizer, criterion):
         """Perform a single training step; `data` represents a batch of data
-        data.x            (number of nodes in sample * batch_size, 4)
+        data.x            (number of nodes in sample * batch_size, n_features)
         data.edge_index   (2, number of edge_indices in sample * batch_size)
         data.edge_attr    (number of edge_indices in sample * batch_size, 1)
         data.y            (batch_size, 2 for two-head 4 for one-head)
@@ -68,7 +68,7 @@ class RepGNN(nn.Module):
         target = data.y.to(int)
         if out.shape != target.shape:
             print(" there is some kind of shape mismatch, I need to inspect my data carefully and also compare 1-to-1 what datastructure is here in the toric code data.")
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
         loss = criterion(out, data.y)
         prediction = (torch.sigmoid(out.detach()) > 0.5).to(self.device).long()
         correct_predictions = int((prediction == target).sum().item())

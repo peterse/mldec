@@ -66,7 +66,6 @@ def sample_dataset(n_data, dataset_config, device, seed=None):
     # slicing to fit our datasize: FIXME: do this in a randomized way.
     if len(X) < n_data:
         raise ValueError(f"Not enough data to sample {n_data} samples. Only {len(X)} samples available.")
-    print("total data length: ", len(X))
     X = X[:n_data]
     y = y[:n_data]
     # X has shape (n_data, repetitions, n-1), y has shape (n_data, repetitions,)
@@ -84,12 +83,15 @@ def sample_dataset(n_data, dataset_config, device, seed=None):
 def build_syndrome_2D(syndrome_data):
     """
     Construct a 2D space/time gride of detector flips over time.
+    The first row always matches the initial syndrome, and then 
+    each subsequent row are differences between the previous row and the current row.
     Args:
         syndrome_data: shape (repetitions, n-1)
     Returns:
         out: shape (n-1, repetitions)
     """
     out = np.zeros_like(syndrome_data)
+    out[0,:] = syndrome_data[0,:]
     out[1:,:] = (syndrome_data[1:,:] - syndrome_data[:-1,:]) % 2
     return out.transpose(1, 0)
 
@@ -113,7 +115,7 @@ def get_2D_graph(syndrome_2D,
     """
     # get defect indices: this is a pair (x_coords, t_coords) for the faults.
     X = np.vstack(np.nonzero(syndrome_2D)).T
-
+    
     # set default power of inverted distances to 1
     if power is None:
         power = 1.
@@ -172,6 +174,7 @@ def generate_batch(syndrome_data_list, observable_flips_list, power=2, m_nearest
         # get the logical equivalence class:
         true_eq_class = np.array([int(observable_flips_list[i])])
         # map to graph representation
+
         graph = get_2D_graph(syndrome_2D = syndrome_2D,
                             target = true_eq_class,
                             power = power,

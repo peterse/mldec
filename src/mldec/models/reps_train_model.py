@@ -1,7 +1,7 @@
 """Training loop for decoding experiments with several cycles (repetitions) of measurement."""
 
 import torch
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 import copy
 import time
 
@@ -80,7 +80,7 @@ def train_model(model_wrapper, dataset_module_str, config, validation_dataset_co
     log_print("generated data")
     log_print("number of trivial training samples: {}".format(triv_tr))
     log_print("number of trivial validation samples: {}".format(triv_val))
-    traing_dataloader = DataLoader(data_tr, batch_size=batch_size, shuffle=True)
+    train_dataloader = DataLoader(data_tr, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(data_val, batch_size=n_test, shuffle=False)
 
     # Baseline accuracies: set up pymatching decoder for validation set; do this directly on stim detection events
@@ -100,11 +100,11 @@ def train_model(model_wrapper, dataset_module_str, config, validation_dataset_co
     for epoch in range(max_epochs):
         train_loss = 0      
         correct_nontrivial_preds_tr = 0
-        for data_batch in traing_dataloader: # batched training
+        for data_batch in train_dataloader: # batched training
             correct_nontrivial_preds_tr_batch, loss = model_wrapper.training_step(data_batch, optimizer, criterion)
             train_loss += loss.item()
             correct_nontrivial_preds_tr += correct_nontrivial_preds_tr_batch
-        train_loss /= len(traing_dataloader) # average loss over batches
+        train_loss /= len(train_dataloader) # average loss over batches
 
         # Compute accuracies as (correct predictions + trivial count) / (n_data + trivial count)
         train_acc = (correct_nontrivial_preds_tr + triv_tr) / n_train

@@ -79,7 +79,7 @@ if __name__ == "__main__":
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 
 	# # # important stuff # # # # # # # # # 
-	mode = "train" # options: train, tune
+	mode = "tune" # options: train, tune
 	dataset_module = "reps_exp_rep_code" # options: reps_toric_code, reps_exp_rep_code
 	MODEL = "gnn" # options: gnn
 	# # # # # # # ## # # # # # # # # # # # # 
@@ -99,28 +99,28 @@ if __name__ == "__main__":
 		"hyper_config_path": f"{MODEL}_{dataset_module}.yaml",
 		"device": "cpu", 
 		"n": n,
-		"n_train": 2000, # !OVERWRITE
-		"n_test": 2000,
+		"n_train": 2048, # !OVERWRITE
+		"n_test": 2048,
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 3000,
+		"max_epochs": 50,
 		"patience": 100,  
 		"opt": "adam",
 		"mode": mode,
 		"input_dim": input_dim,
 		"output_dim": output_dim,
-		"lr": 0.003, # !OVERWRITE
-		"batch_size": 128, # !OVERWRITE
+		# "lr": 0.003, # !OVERWRITE
+		# "batch_size": 128, # !OVERWRITE
 		"dropout": 0.05, # 
 	}
 
 	if config.get("model") == "gnn":
 		model_config = {
 			"model": "gnn",
-			"gcn_depth": 5,# !OVERWRITE
-			"gcn_min": 32,# !OVERWRITE
-			"mlp_depth": 3,# !OVERWRITE
-			"mlp_max": 64,# !OVERWRITE
+			# "gcn_depth": 5,# !OVERWRITE
+			# "gcn_min": 32,# !OVERWRITE
+			# "mlp_depth": 3,# !OVERWRITE
+			# "mlp_max": 64,# !OVERWRITE
 		}
 
 

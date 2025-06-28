@@ -2,7 +2,7 @@ import numpy as np
 from mldec.datasets.toy_problem_data import repetition_pcm
 
 
-def process_jobs(n, T, train_job, val_job, delay_factors, train_initial_states, val_initial_states):
+def process_jobs(n, T, train_job_result, val_job_result, delay_factors, train_initial_states, val_initial_states):
     """
 
     Process the results of both the traing and validation jobs together. X data will
@@ -18,10 +18,6 @@ def process_jobs(n, T, train_job, val_job, delay_factors, train_initial_states, 
         Each Y_tr has shape (num_trials, shots, 1) corresponding to 
             (initial state, shots, I{initial_state != final_state})
     """
-    # this should have length len(delay_factors) * num_initial_states
-    train_job_result = train_job.result()
-    # this should have length num_initial_states
-    val_job_result = val_job.result()
 
     out = {}
     tr_shots = train_job_result[0].data.data_bit_0.num_shots

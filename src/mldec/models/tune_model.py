@@ -190,6 +190,8 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 		knob_list = distribute_hyperparameters_evenly(num_samples, knob_settings, "beta", fixed_dict={"var": knob_settings.get("var")})
 	elif dataset_module == "reps_toric_code":
 		knob_list = distribute_hyperparameters_evenly(num_samples, knob_settings, "beta")
+	elif dataset_module == "reps_exp_rep_code":
+		knob_list = distribute_hyperparameters_evenly(num_samples, knob_settings, "beta")
 	else:
 		raise NotImplementedError
 	logger.debug("Distributing these hyperparameters: {}".format(knob_list))
@@ -217,7 +219,7 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 	# Different training schemes for with/without multiple code cycles.
 	if dataset_module in ["toy_problem", "toric_code"]:
 		trainable = MakeTrainable(trainer=train_model.train_model)
-	elif dataset_module == "reps_toric_code":
+	elif dataset_module in ["reps_toric_code", "reps_exp_rep_code"]:
 		trainable = MakeTrainable(trainer=reps_train_model.train_model)
 
 	with mp.Pool(processes=num_cpus) as pool:
