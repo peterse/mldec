@@ -8,3 +8,4 @@ src/mldec/pipelines/train_results
 src/mldec/tune_results
 src/mldec/pipelines/temp
 .venv
+.vscode

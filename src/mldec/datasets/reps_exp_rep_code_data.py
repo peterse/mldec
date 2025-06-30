@@ -46,11 +46,14 @@ def make_exp_dataset_name(code_size, repetitions, beta):
     return f"rep_code_data_n{code_size}_reps{repetitions}_beta{beta}"
 
 
-def sample_dataset(n_data, dataset_config, device, seed=None):
+def sample_dataset(n_data, dataset_config, device, seed=None, randomize=True):
     """Given a dataset config, sample an EXPERIMENTAL dataset of size n_data.
     
     The experimental data is stored
 
+    By default, the seeding is not thread-safe so we will just rely on system specs to generate different random
+    behavior per thread.
+    
     FIXME:
     - for a big experiment, we will have many different ways to slice an [n, 1, n] rep code into [m, 1, m] with m<n
           ...where do we implement that?
@@ -66,8 +69,10 @@ def sample_dataset(n_data, dataset_config, device, seed=None):
     # slicing to fit our datasize: FIXME: do this in a randomized way.
     if len(X) < n_data:
         raise ValueError(f"Not enough data to sample {n_data} samples. Only {len(X)} samples available.")
-    X = X[:n_data]
-    y = y[:n_data]
+    if randomize:
+        perm = np.random.permutation(n_data)
+        X = X[perm,:,:]
+        y = y[perm]
     # X has shape (n_data, repetitions, n-1), y has shape (n_data, repetitions,)
     non_empty_indices = (np.sum(X.reshape(n_data, -1), axis = 1) != 0)
 
