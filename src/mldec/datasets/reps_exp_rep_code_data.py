@@ -46,7 +46,7 @@ def make_exp_dataset_name(code_size, repetitions, beta):
     return f"rep_code_data_n{code_size}_reps{repetitions}_beta{beta}"
 
 
-def sample_dataset(n_data, dataset_config, device, seed=None, randomize=True):
+def sample_dataset(n_data, dataset_config, device, seed=None, randomize=True, return_raw=False):
     """Given a dataset config, sample an EXPERIMENTAL dataset of size n_data.
     
     The experimental data is stored
@@ -79,6 +79,8 @@ def sample_dataset(n_data, dataset_config, device, seed=None, randomize=True):
     trivial_count = len(y[~non_empty_indices])
     syndrome_data = X[non_empty_indices, :, :]
     observable_flips = y[non_empty_indices]
+    if return_raw: # this is for debugging purposes
+        return syndrome_data, trivial_count, observable_flips
     buffer = generate_batch(syndrome_data, observable_flips)
     torch_buffer = dataset_to_torch(buffer, device)
     # return signature is for backwards compatibility with a stim sampler...

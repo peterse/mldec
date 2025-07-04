@@ -21,9 +21,38 @@
 from qiskit import QuantumRegister, ClassicalRegister
 from qiskit import QuantumCircuit
 from qiskit.transpiler.exceptions import TranspilerError
-
+from qiskit_experiments.framework import BackendTiming
 import numpy as np
 
+
+def get_target_qubits(n):
+    # specify physical qubits on the backend
+    if n <= 20:
+        row1 = list(range(1, 13))
+        col1 = [18]
+        row2 = list(reversed(range(25, 32)))
+        col2 = [35]
+        row3 = list(range(44, 51))
+        col3 = [56]
+        row4 = list(reversed(range(59, 70)))
+        col4 = [72]
+        row5 = list(range(78, 85))
+        target_qubits = row1 + col1 + row2 + col2 + row3 + col3 + row4 + col4 + row5
+        target_qubits = target_qubits[:2*n-1]
+
+    # if delay_factor > 1, we will insert idle delays between some gates.
+    assert len(np.unique(target_qubits)) == 2*n-1
+    return target_qubits
+
+# precompose initial states so that I don't have to keep track of them later
+def generate_initial_states(n, num_trials, seed=9876):
+    np.random.seed(seed)
+    train_initial_states = []
+    val_initial_states = []
+    for trial in range(num_trials):
+        train_initial_states.append(list(np.random.randint(0, 2, n)))
+        val_initial_states.append(list(np.random.randint(0, 2, n)))
+    return train_initial_states, val_initial_states
 
 
 def make_layout_mapping(qregs_links, qregs_code, target_qubits):
@@ -40,7 +69,7 @@ def make_layout_mapping(qregs_links, qregs_code, target_qubits):
     return mapping_dict, inverse_mapping_dict
 
 
-def try_to_get_delay_duration(beta, durations, instr, qubits, unit='dt'):
+def try_to_get_delay_duration(beta, durations, instr, qubits, timing,unit='dt'):
     instr_duration = None
     if instr in ['cz']:
         try:
@@ -54,10 +83,15 @@ def try_to_get_delay_duration(beta, durations, instr, qubits, unit='dt'):
     else:
         instr_duration = durations.get(instr, qubits, unit=unit)
     if instr_duration is None:
-        raise ValueError(f"Could not get duration for {instr} on {qubits}")
+        print(f"WARNING:Could not get duration for {instr} on {qubits}")
+        instr_duration = 0
+        # raise ValueError(f"Could not get duration for {instr} on {qubits}")
     # we have to cast to integers since dt is the smallest unit ofdelay
     if beta > 1:
         return int((beta-1)*instr_duration)
+        # print(instr_duration)
+        # print(timing.round_delay(time=int((beta-1)*instr_duration)))
+        # return timing.round_delay(time=int((beta-1)*instr_duration))
     else:
         raise ValueError(f"Beta is too small, cannot be smaller than 1: {beta}")
 
@@ -114,7 +148,7 @@ class HardwarePhaseFlipRepetitionCode:
 
             self.backend = backend
             self.delay_factor = delay_factor
-
+            self.timing = BackendTiming(backend)
             self.measure_bits = []
             self.data_bit = ClassicalRegister(n, "data_bit_" + str(id))
 
@@ -144,10 +178,9 @@ class HardwarePhaseFlipRepetitionCode:
         for i in range(self.n):
             if self.initial_state[i] == 1:
                 if self.delay_factor > 1:
-                    delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'x', [self.inv_map[self.data_qubit[i]]], unit='dt')
+                    delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'x', [self.inv_map[self.data_qubit[i]]], self.timing, unit='dt')
                     if delay_duration > 0:
                         self.circuit.delay(delay_duration, self.data_qubit[i])
-
                 self.circuit.x(self.data_qubit[i])
         self.circuit.barrier()
         self.hardware_hadamard_delay(self.data_qubit)
@@ -163,7 +196,7 @@ class HardwarePhaseFlipRepetitionCode:
         # self.circuit.barrier()
         if self.delay_factor > 1:
             for q in qubits:
-                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'sx', [self.inv_map[q]], unit='dt')
+                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'sx', [self.inv_map[q]], self.timing, unit='dt')
                 if delay_duration > 0:
                     self.circuit.delay(delay_duration, q)
         self.circuit.sx(qubits)
@@ -194,7 +227,7 @@ class HardwarePhaseFlipRepetitionCode:
         for j in range(self.n - 1):
             dj, mj = self.data_qubit[j], self.measure_qubit[j]
             if self.delay_factor > 1:
-                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'cz', (self.inv_map[mj], self.inv_map[dj]), unit='dt')
+                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'cz', (self.inv_map[mj], self.inv_map[dj]), self.timing, unit='dt')
                 if delay_duration > 0:
                     self.circuit.delay(delay_duration, dj)
                     self.circuit.delay(delay_duration, mj)
@@ -203,7 +236,7 @@ class HardwarePhaseFlipRepetitionCode:
         for j in range(self.n - 1):
             dj1, mj = self.data_qubit[j + 1], self.measure_qubit[j]
             if self.delay_factor > 1:
-                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'cz', (self.inv_map[mj], self.inv_map[dj1]), unit='dt')
+                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'cz', (self.inv_map[mj], self.inv_map[dj1]), self.timing, unit='dt')
                 if delay_duration > 0:
                     self.circuit.delay(delay_duration, dj1)
                     self.circuit.delay(delay_duration, mj)
@@ -215,7 +248,7 @@ class HardwarePhaseFlipRepetitionCode:
         self.circuit.barrier()
         for j in range(self.n - 1):
             if self.delay_factor > 1:
-                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'measure', (self.inv_map[self.measure_qubit[j]]), unit='dt')
+                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'measure', (self.inv_map[self.measure_qubit[j]]), self.timing, unit='dt')
                 if delay_duration > 0:
                     self.circuit.delay(delay_duration, self.measure_qubit[j])
             self.circuit.measure(
@@ -227,7 +260,7 @@ class HardwarePhaseFlipRepetitionCode:
         for j in range(self.n - 1): 
             if self._resets and not final:
                 if self.delay_factor > 1:
-                    delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'reset', (self.inv_map[self.measure_qubit[j]]), unit='dt')
+                    delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'reset', (self.inv_map[self.measure_qubit[j]]), self.timing, unit='dt')
                     if delay_duration > 0:
                         self.circuit.delay(delay_duration, self.measure_qubit[j])
                 self.circuit.reset(self.measure_qubit[j])
@@ -248,7 +281,7 @@ class HardwarePhaseFlipRepetitionCode:
         self.circuit.add_register(self.data_bit)
         if self.delay_factor > 1:
             for q in self.data_qubit:
-                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'measure', (self.inv_map[q]), unit='dt')
+                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'measure', (self.inv_map[q]), self.timing, unit='dt')
                 if delay_duration > 0:
                     self.circuit.delay(delay_duration, q)
         self.circuit.measure(self.data_qubit, self.data_bit)

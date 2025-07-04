@@ -3,3 +3,5 @@
 *.xlsx
 *.txt
 *.json
+./results/reps-exp-rep-code-*
+./results/reps-toric-code-*

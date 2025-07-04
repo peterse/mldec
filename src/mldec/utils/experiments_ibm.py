@@ -4,6 +4,12 @@ from mldec.datasets.toy_problem_data import repetition_pcm
 
 def process_jobs(n, T, train_job_result, val_job_result, delay_factors, train_initial_states, val_initial_states):
     """
+    The train_jobs are expected to have been a nested loop of the form:
+    for i in range(num_trials):
+        for j in range(len(delay_factors)):
+            ...
+    so that indexing the (i-th trial, j-th delay factor) is accomplished with 
+    i*len(delay_factors) + j.
 
     Process the results of both the traing and validation jobs together. X data will
     have the shape(num_trials, T, shots, n-1) corresponding to 
@@ -24,6 +30,7 @@ def process_jobs(n, T, train_job_result, val_job_result, delay_factors, train_in
     val_shots = val_job_result[0].data.data_bit_0.num_shots
     
     num_trials = len(train_initial_states)
+    num_delay_factors = len(delay_factors)
     for delay_factor in delay_factors:
         X_tr = np.zeros((num_trials, T, tr_shots, n - 1))
         Y_tr = np.zeros((num_trials, tr_shots))
@@ -41,7 +48,7 @@ def process_jobs(n, T, train_job_result, val_job_result, delay_factors, train_in
         # deviation from this expected sydrome as the 'actual' syndrome
         baseline_syndrome = train_initial_state @ H.T % 2
         for j, delay_factor in enumerate(delay_factors):
-            train_job_trial_i_delay_j = train_job_result[i*num_trials + j]
+            train_job_trial_i_delay_j = train_job_result[i*num_delay_factors + j]
             for k in range(T): 
                 train_arr = getattr(train_job_trial_i_delay_j.data, f"round_{k}_link_bit_0").to_bool_array() 
                 out[delay_factor][0][i, k, :, :] = train_arr.astype(int)
