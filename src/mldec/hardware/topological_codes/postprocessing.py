@@ -13,7 +13,6 @@ def reshape_and_verify_correspondence(X, y):
         X_reshaped: shape (n_trials * n_data, repetitions, n-1)
         y_reshaped: shape (n_trials * n_data)
     """
-    print(X.shape)
     n_trials, repetitions, n_data, n_minus_1 = X.shape
     
     # Reshape X: (n_trials, repetitions, n_data, n-1) -> (n_trials * n_data, repetitions, n-1)
