@@ -1,12 +1,7 @@
-from multiprocessing import Pool
-
-
-# Qiskit imports
 from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
 from qiskit.transpiler import generate_preset_pass_manager
 from qiskit.transpiler import Layout
 from qiskit import QuantumCircuit, transpile
-# tutorial at https://github.com/Qiskit/textbook/blob/main/notebooks/quantum-hardware/error-correction-repetition-code.ipynb
 from mldec.hardware.topological_codes.circuits import RepetitionCode, HardwarePhaseFlipRepetitionCode, generate_initial_states, get_target_qubits
 from mldec.utils.experiments_ibm import process_jobs
 
@@ -16,9 +11,8 @@ from qiskit_aer.noise import NoiseModel
 from mldec.datasets.reps_exp_rep_code_data import make_exp_dataset_name, save_data
 from mldec.hardware.topological_codes.postprocessing import reshape_and_verify_correspondence
 from mldec.hardware.topological_codes.postprocessing import convert_aer_to_sampler_format
-from concurrent.futures import ThreadPoolExecutor
-
-
+from concurrent.futures import ProcessPoolExecutor
+import os
 import numpy as np
 
 
@@ -26,19 +20,36 @@ import numpy as np
 def main():
     #########################################################################################
     # run parameters
-    max_workers = 40 # num threads
-    max_job_size = 2 # number of circuits per worker
+    # DON'T FORGET TO MODIFY YOUR ENV FIRST
+    # export OMP_NUM_THREADS=72
+
+    max_workers = 72 # num threads
+
+    print("available cpus: ", os.cpu_count(), "using ", max_workers)
 
     # Set the number of qubits and rounds of syndrome measurement.
-    n = 5
-    T = 6
+    n = 9
+    T = 10
 
     num_train = 4096 # training examples PER TRIAL, total training data is num_train * num_trials
     num_val = 16384 # this is number of validation runs PERTRIAL
 
     num_trials = 8 # every trial consists of a different initial state.
     delay_factors = [1, 1.1, 1.2, 1.3, 1.4, 2, 3, 4, 5]
-
+    print("=== Simulation Parameters Summary ===")
+    print(f"Max workers (threads): {max_workers}")
+    print(f"Number of qubits (n): {n}")
+    print(f"Syndrome measurement rounds (T): {T}")
+    print(f"Training examples per trial: {num_train}")
+    print(f"Validation examples per trial: {num_val}")
+    print(f"Number of trials: {num_trials}")
+    print(f"Delay factors: {delay_factors}")
+    print(f"Total training circuits: {num_trials * len(delay_factors)}")
+    print(f"Total validation circuits: {num_trials}")
+    print(f"Total training shots per delay factor: {num_train * num_trials}")
+    print(f"Total validation shots: {num_val * num_trials}")
+    print("=====================================")
+    print(">>>>> did you remember to export OMP_NUM_THREADS= in the terminal? <<<<<")
     #########################################################################################
 
     target_qubits = get_target_qubits(n)
@@ -46,7 +57,7 @@ def main():
     noise_model = NoiseModel.from_backend(
         device, thermal_relaxation=True, gate_error=True, readout_error=True
     )
-    backend = AerSimulator.from_backend(device, noise_model=noise_model)
+    backend = AerSimulator.from_backend(device, noise_model=noise_model, method='statevector')
 
 
     # We will specify different initial qubit states, but due to bandwidth issues we run many
@@ -79,17 +90,22 @@ def main():
     # Running the jobs
 
     print(f"submitting {tot_train} training circuits and {len(validation_circuits)} validation circuits")
-    exc = ThreadPoolExecutor(max_workers=max_workers)
-    backend.set_options(executor=exc)
-    backend.set_options(max_job_size=max_job_size)
+    exc = ProcessPoolExecutor(max_workers=max_workers)
+    # backend.set_options(executor=exc)
+    backend.set_options(max_parallel_experiments =max_workers)
+    backend.set_options(max_parallel_threads =max_workers)
     # Transpile circuits to backend basis gates
     transpiled_training_circuits = transpile(training_circuits, backend)
     transpiled_validation_circuits = transpile(validation_circuits, backend)
     
+    import time
+    start_time = time.time()
     training_job = backend.run(transpiled_training_circuits, shots=num_train)
     validation_job = backend.run(transpiled_validation_circuits, shots=num_val)
     train_job_result = training_job.result()
     val_job_result = validation_job.result()
+    end_time = time.time()
+    print(f"Sim time taken: {end_time - start_time} seconds")
 
     # CONVERT THE TRAINING JOB INTO THE FORMAT OF sampler.Run
     print("Converting AerSimulator results to Sampler format...")
@@ -103,7 +119,6 @@ def main():
 
 
     for beta, (X, y) in out.items():
-        print(beta)
         fname = make_exp_dataset_name(n, T, beta)
         # current shape: X: (n_trials, repetitions, n_data, n-1), y: (n_trials, n_data)
         X, y = reshape_and_verify_correspondence(X, y)

@@ -99,12 +99,12 @@ if __name__ == "__main__":
 		"hyper_config_path": f"{MODEL}_{dataset_module}.yaml",
 		"device": "cpu", 
 		"n": n,
-		"n_train": 2048, # !OVERWRITE
-		"n_test": 2048,
+		# "n_train": 2048, # !OVERWRITE
+		"n_test": 131072,
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 50,
-		"patience": 100,  
+		"max_epochs": 3000,
+		"patience": 500,  
 		"opt": "adam",
 		"mode": mode,
 		"input_dim": input_dim,
