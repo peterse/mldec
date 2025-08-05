@@ -1,6 +1,5 @@
 numpy==1.26.4
 torch
-pandas
 pyyaml
 pymatching
 stim
@@ -11,4 +10,3 @@ seaborn==0.12.2
 qiskit-aer
 qiskit[visualization]
 qiskit-ibm-runtime
-git+https://github.com/NCCR-SPIN/topological_codes.git

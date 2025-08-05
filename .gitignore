@@ -9,3 +9,5 @@ src/mldec/tune_results
 src/mldec/pipelines/temp
 .venv
 .vscode
+.DS_Store
+src/.DS_Store
