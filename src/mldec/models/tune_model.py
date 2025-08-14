@@ -184,7 +184,7 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 	# get knob settings to pass directly into train func
 	# we distribute them evenly among all of the samples for this run.
 	num_samples = hyper_settings.get("num_samples")
-	if dataset_module == "toy_problem":
+	if dataset_module == "toy_problem" or dataset_module == "toy_problem_unbiased":
 		knob_list = distribute_hyperparameters_evenly(num_samples, knob_settings, "p")
 	elif dataset_module == "toric_code":
 		knob_list = distribute_hyperparameters_evenly(num_samples, knob_settings, "beta", fixed_dict={"var": knob_settings.get("var")})
@@ -217,7 +217,7 @@ def tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_m
 		time.sleep(0.1) # to ensure unique timestamps
 	
 	# Different training schemes for with/without multiple code cycles.
-	if dataset_module in ["toy_problem", "toric_code"]:
+	if dataset_module in ["toy_problem", "toric_code", "toy_problem_unbiased"]:
 		trainable = MakeTrainable(trainer=train_model.train_model)
 	elif dataset_module in ["reps_toric_code", "reps_exp_rep_code"]:
 		trainable = MakeTrainable(trainer=reps_train_model.train_model)

@@ -37,6 +37,14 @@ def main(config):
 			# 'p': dataset_config.get('p'), # !OVERWRITE # how much to scale 'p' by
 			'alpha': dataset_config.get('alpha'),
 		}
+	elif dataset_module == "toy_problem_unbiased":
+		n = config['n']
+		dataset_config = {
+			'p': 0.1,
+			'alpha': 1,
+			'pcm': toy_problem_data.repetition_pcm(n),
+			'sos_eos': config.get("sos_eos", None),
+		}
 	elif dataset_module == "toric_code":
 		n = config['n']
 		dataset_config = {
@@ -104,11 +112,11 @@ if __name__ == "__main__":
 	only_good_examples = False
 	mode = "tune" # options: train, tune
 	# dataset_module = "toric_code" # options: toy_problem, toric_code
-	dataset_module = "toy_problem" # options: toy_problem, toric_code
-	MODEL = "ffnn" # options: cnn, transformer
+	dataset_module = "toy_problem_unbiased" # options: toy_problem, toric_code
+	MODEL = "transformer" # options: cnn, transformer
 	# # # # # # # ## # # # # # # # # # # # # 
 
-	if dataset_module == "toy_problem":
+	if dataset_module == "toy_problem" or dataset_module == "toy_problem_unbiased":
 		n = 8
 		input_dim = n - 1
 		output_dim = n

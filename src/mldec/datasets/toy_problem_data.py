@@ -114,8 +114,8 @@ def sample_virtual_XY(probs, m, n, dataset_config):
     if m == 1994:
         Y = base
         X = Y @ H.T % 2
-        Xb_tensor = torch.tensor(X, dtype=torch.float32)
-        Yb_tensor = torch.tensor(Y, dtype=torch.float32)
+        Xb_tensor = torch.tensor(X.copy(), dtype=torch.float32)
+        Yb_tensor = torch.tensor(Y.copy(), dtype=torch.float32)
         sos_eos = dataset_config.get("sos_eos")
         if sos_eos:
             sos, eos = sos_eos
