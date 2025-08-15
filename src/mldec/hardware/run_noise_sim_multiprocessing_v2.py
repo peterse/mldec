@@ -23,7 +23,6 @@ def main():
     # DON'T FORGET TO MODIFY YOUR ENV FIRST
     # export OMP_NUM_THREADS=72
 
-    max_workers = 72 # num threads
 
     print("available cpus: ", os.cpu_count(), "using ", max_workers)
 
@@ -35,8 +34,12 @@ def main():
     num_trials = 1 # every trial consists of a different initial state.
 
 
-    delay_factors = [1, 1.1, 1.2, 1.3, 1.4, 2, 3, 4, 5]
-    for (n, T) in [(5, 5), (6, 6), (7, 7), (8, 8)]:
+    delay_factors = [1]
+    num_repeats_plus_one_arr = [1, 2, 3, 4, 5]
+    n_T_arr = [(3, 3), (5, 5), (6, 6), (7, 7), (8, 8)]
+    max_workers = 72 # num threads
+
+    for (n, T) in n_T_arr:
         print("=== Simulation Parameters Summary ===")
         print(f"Max workers (threads): {max_workers}")
         print(f"Number of qubits (n): {n}")
@@ -45,6 +48,7 @@ def main():
         print(f"Validation examples per trial: {num_val}")
         print(f"Number of trials: {num_trials}")
         print(f"Delay factors: {delay_factors}")
+        print(f"Number of repeats plus one: {num_repeats_plus_one_arr}")
         print(f"Total training circuits: {num_trials * len(delay_factors)}")
         print(f"Total validation circuits: {num_trials}")
         print(f"Total training shots per delay factor: {num_train * num_trials}")
@@ -73,9 +77,10 @@ def main():
         tot_train = 0
         for trial in range(num_trials):
             initial_state = train_initial_states[trial]
-            for delay_factor in delay_factors:
+            for num_repeats_plus_one in num_repeats_plus_one_arr:
                 # initialize a new 
-                code = HardwarePhaseFlipRepetitionCode(n, T, initial_state=initial_state, backend=backend, delay_factor=delay_factor, target_qubits=target_qubits)
+                code = HardwarePhaseFlipRepetitionCode(n, T, initial_state=initial_state, backend=backend, delay_factor=1, 
+                                                       target_qubits=target_qubits, num_repeats_plus_one=num_repeats_plus_one)
                 training_circuits.append(code.circuit)
                 train_num_shots.append(num_train)
                 tot_train += 1
@@ -98,7 +103,7 @@ def main():
         backend.set_options(max_parallel_experiments =max_workers)
         backend.set_options(max_parallel_threads =max_workers)
         # Transpile circuits to backend basis gates
-        transpiled_training_circuits = transpile(training_circuits, backend)
+        transpiled_training_circuits = transpile(training_circuits, backend)            
         transpiled_validation_circuits = transpile(validation_circuits, backend)
         
         import time
@@ -118,11 +123,11 @@ def main():
         # POSTPROCESSING
         # Convert the nested lists of jobs into a dictionary of the form {beta: (X, Y)}
         # this also processes the data into DetectorDDD format
-        out = process_jobs(n, T, converted_train_result, converted_val_result, delay_factors, train_initial_states, val_initial_states)
+        out = process_jobs(n, T, converted_train_result, converted_val_result, num_repeats_plus_one_arr, train_initial_states, val_initial_states)
 
 
-        for beta, (X, y) in out.items():
-            fname = make_exp_dataset_name(n, T, beta)
+        for num_repeats_plus_one, (X, y) in out.items():
+            fname = make_exp_dataset_name(n, T, 1, delay_plus_one=num_repeats_plus_one)
             # current shape: X: (n_trials, repetitions, n_data, n-1), y: (n_trials, n_data)
             X, y = reshape_and_verify_correspondence(X, y)
             # new shapes: (n_trials*n_data, repetitions, n-1), y: (n_trials*n_data)
