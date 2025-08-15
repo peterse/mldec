@@ -15,6 +15,10 @@ def process_jobs(n, T, train_job_result, val_job_result, delay_factors, train_in
     have the shape(num_trials, T, shots, n-1) corresponding to 
         (initial state, round, shots, syndrome bits)
     
+    Returns an array of syndromes matrices indexed by (i,j) along (:,i,:,j). The
+    syndromes have the original state syndrome modded out, but HAVE NOT been converted
+    to detection events.
+
     Args: 
 
     Returns:
@@ -43,9 +47,10 @@ def process_jobs(n, T, train_job_result, val_job_result, delay_factors, train_in
 
     H = repetition_pcm(n)
     for i in range(num_trials):
-        train_initial_state = train_initial_states[i][::-1] #endianess
+        # train_initial_state = train_initial_states[i][::-1] #endianess was an issue at some point?
+        train_initial_state = train_initial_states[i] # endianess is not an issue, by inspection
         # get the baseline syndrome: We are going to store 
-        # deviation from this expected sydrome as the 'actual' syndrome
+        # deviation from this expected sydrome as the 'actual' syndrome; parity is linear so we can xor the syndromes
         baseline_syndrome = train_initial_state @ H.T % 2
         for j, delay_factor in enumerate(delay_factors):
             train_job_trial_i_delay_j = train_job_result[i*num_delay_factors + j]
@@ -55,7 +60,7 @@ def process_jobs(n, T, train_job_result, val_job_result, delay_factors, train_in
             # now we mod out the baseline induced by the initial state to see a nontrivial syndrome only
             # this is _different_ than forming a detector as flips between rounds.
             out[delay_factor][0][i, :, :, :] = np.logical_xor(out[delay_factor][0][i, :, :, :].astype(int), baseline_syndrome).astype(int)
-            
+               
             # compute y values as whether the final state is the same as the initial state,
             # TODO: I guess any individual bitflip counts as a logical observable flip in the conjugate basis.
             final_tr_arr = train_job_trial_i_delay_j.data.data_bit_0.to_bool_array().astype(int)

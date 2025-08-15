@@ -4,6 +4,7 @@ from qiskit.transpiler import Layout
 from qiskit import QuantumCircuit, transpile
 from mldec.hardware.topological_codes.circuits import RepetitionCode, HardwarePhaseFlipRepetitionCode, generate_initial_states, get_target_qubits
 from mldec.utils.experiments_ibm import process_jobs
+import time
 
 from qiskit_ibm_runtime.fake_provider import FakeTorino
 from qiskit_aer import AerSimulator
@@ -99,7 +100,6 @@ def main():
         transpiled_training_circuits = transpile(training_circuits, backend)
         transpiled_validation_circuits = transpile(validation_circuits, backend)
         
-        import time
         start_time = time.time()
         training_job = backend.run(transpiled_training_circuits, shots=num_train)
         validation_job = backend.run(transpiled_validation_circuits, shots=num_val)

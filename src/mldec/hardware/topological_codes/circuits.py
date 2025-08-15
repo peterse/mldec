@@ -101,7 +101,7 @@ class HardwarePhaseFlipRepetitionCode:
 
     def __init__(self, n, T=0, 
                  initial_state=None, resets=True, barriers=False, id=0, 
-                 backend=None, delay_factor=1, target_qubits=None):
+                 backend=None, delay_factor=1, num_repeats_plus_one=0, target_qubits=None):
             """
             Creates the circuits corresponding to a logical 0 and 1 encoded
             using a repetition code.
@@ -114,6 +114,8 @@ class HardwarePhaseFlipRepetitionCode:
                 resets (bool): Whether to include a reset gate after mid-circuit measurements.
                 barrier (bool): Boolean denoting whether to include a barrier at the end.
                 id (int): Repetition code id, in case you use several repetition codes in the same circuit
+                num_repeats_plus_one (int): Number of times to repeat the code, plus one; this is to distinguish
+                    zero repeats from validation data (flagged by num_repeats_plus_one=0)
 
 
             Additional information:
@@ -133,6 +135,10 @@ class HardwarePhaseFlipRepetitionCode:
             self.n = n
             self.T = 0
             self.id = id
+
+            if delay_factor != 1 and num_repeats_plus_one != 1:
+                raise ValueError("delay_factor and num_repeats cannot be used together")
+            self.num_repeats = num_repeats_plus_one - 1
 
             if initial_state is None:
                 initial_state = [0] * self.n
@@ -182,10 +188,20 @@ class HardwarePhaseFlipRepetitionCode:
                     if delay_duration > 0:
                         self.circuit.delay(delay_duration, self.data_qubit[i])
                 self.circuit.x(self.data_qubit[i])
+                for _ in range(self.num_repeats):
+                    self.circuit.x(self.data_qubit[i]).inverse()
+                    self.circuit.x(self.data_qubit[i])
         self.circuit.barrier()
+
+        # hadamard layer, possibly repeated
         self.hardware_hadamard_delay(self.data_qubit)
-        if barrier:
+        for _ in range(self.num_repeats):
+            # hadamard is self-inverse
             self.circuit.barrier()
+            self.hardware_hadamard_delay(self.data_qubit)
+            self.circuit.barrier()
+            self.hardware_hadamard_delay(self.data_qubit)
+        self.circuit.barrier()
 
     def hardware_hadamard_delay(self, qubits):
         """
@@ -218,33 +234,49 @@ class HardwarePhaseFlipRepetitionCode:
         durations = self.backend.target.durations()
         self.measure_bits.append(
             ClassicalRegister((self.n - 1), "round_" + str(self.T) + "_link_bit_" + str(self.id))        )
-
         self.circuit.add_register(self.measure_bits[-1])
 
-        self.circuit.barrier()
+        # hadamard layer, possibly repeated
         self.hardware_hadamard_delay(self.circuit.qubits)
+        for _ in range(self.num_repeats):
+            self.circuit.barrier()
+            self.hardware_hadamard_delay(self.circuit.qubits)
+            self.circuit.barrier()
+            self.hardware_hadamard_delay(self.circuit.qubits)
         self.circuit.barrier()
-        for j in range(self.n - 1):
-            dj, mj = self.data_qubit[j], self.measure_qubit[j]
-            if self.delay_factor > 1:
-                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'cz', (self.inv_map[mj], self.inv_map[dj]), self.timing, unit='dt')
-                if delay_duration > 0:
-                    self.circuit.delay(delay_duration, dj)
-                    self.circuit.delay(delay_duration, mj)
-            self.circuit.cz(dj, mj)
-        self.circuit.barrier()
-        for j in range(self.n - 1):
-            dj1, mj = self.data_qubit[j + 1], self.measure_qubit[j]
-            if self.delay_factor > 1:
-                delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'cz', (self.inv_map[mj], self.inv_map[dj1]), self.timing, unit='dt')
-                if delay_duration > 0:
-                    self.circuit.delay(delay_duration, dj1)
-                    self.circuit.delay(delay_duration, mj)
-            self.circuit.cz(mj, dj1)
-        self.circuit.barrier()
-        self.hardware_hadamard_delay(self.circuit.qubits)
 
-        # syndrome measurement
+        # CZ layer, possibly repeated
+        for _ in range(self.num_repeats*2 + 1):
+            # first cz layer
+            for j in range(self.n - 1):
+                dj, mj = self.data_qubit[j], self.measure_qubit[j]
+                if self.delay_factor > 1:
+                    delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'cz', (self.inv_map[mj], self.inv_map[dj]), self.timing, unit='dt')
+                    if delay_duration > 0:
+                        self.circuit.delay(delay_duration, dj)
+                        self.circuit.delay(delay_duration, mj)
+                self.circuit.cz(dj, mj)
+            # second cz layer
+            self.circuit.barrier()
+            for j in range(self.n - 1):
+                dj1, mj = self.data_qubit[j + 1], self.measure_qubit[j]
+                if self.delay_factor > 1:
+                    delay_duration = try_to_get_delay_duration(self.delay_factor, durations, 'cz', (self.inv_map[mj], self.inv_map[dj1]), self.timing, unit='dt')
+                    if delay_duration > 0:
+                        self.circuit.delay(delay_duration, dj1)
+                        self.circuit.delay(delay_duration, mj)
+                self.circuit.cz(mj, dj1)
+            self.circuit.barrier()
+
+        # hadamard layer, possibly repeated
+        self.hardware_hadamard_delay(self.circuit.qubits)
+        for _ in range(self.num_repeats):
+            self.circuit.barrier()
+            self.hardware_hadamard_delay(self.circuit.qubits)
+            self.circuit.barrier()
+            self.hardware_hadamard_delay(self.circuit.qubits)
+
+        # syndrome measurements
         self.circuit.barrier()
         for j in range(self.n - 1):
             if self.delay_factor > 1:
@@ -256,7 +288,6 @@ class HardwarePhaseFlipRepetitionCode:
             
         # resets on measure qubits
         self.circuit.barrier()
-
         for j in range(self.n - 1): 
             if self._resets and not final:
                 if self.delay_factor > 1:
@@ -265,9 +296,7 @@ class HardwarePhaseFlipRepetitionCode:
                         self.circuit.delay(delay_duration, self.measure_qubit[j])
                 self.circuit.reset(self.measure_qubit[j])
             
-        # delay
-        if barrier:
-            self.circuit.barrier()
+        self.circuit.barrier()
 
         self.T += 1
 

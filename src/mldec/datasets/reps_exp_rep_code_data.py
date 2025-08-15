@@ -28,7 +28,7 @@ def load_data(fname):
     return X, Y
 
 
-def make_exp_dataset_name(code_size, repetitions, beta):
+def make_exp_dataset_name(code_size, repetitions, beta, delay_plus_one=None):
     """Make a name for repetition code data.
     
     code_size: 'n', the number of data qubits in the [n, 1, n] rep code.
@@ -43,7 +43,11 @@ def make_exp_dataset_name(code_size, repetitions, beta):
     
     The experimental data is stored in datasets/exp_data/.
     """
-    return f"rep_code_data_n{code_size}_reps{repetitions}_beta{beta}"
+    out = f"rep_code_data_n{code_size}_reps{repetitions}_beta{beta}"
+    if delay_plus_one is not None:
+        assert beta == 1
+        out = f"rep_code_data_n{code_size}_reps{repetitions}_delay{delay_plus_one}"
+    return out
 
 
 def sample_dataset(n_data, dataset_config, device, seed=None, randomize=True, return_raw=False):
