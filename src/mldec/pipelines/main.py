@@ -48,24 +48,24 @@ def main(config):
 	elif dataset_module == "toric_code":
 		n = config['n']
 		dataset_config = {
-			'p': 0.01,
-			'var': 0.01,
+			'p': 0.05,
+			'var': 0.03,
 			"sos_eos": config.get("sos_eos", None),
 			"beta": 1
 		}
 	elif dataset_module == "steane_code":
 		n = config['n']
 		dataset_config = {
-			'p': 0.01,
-			'var': 0.01,
+			'p': 0.05,
+			'var': 0.03,
 			"sos_eos": config.get("sos_eos", None),
 			"beta": 1
 		}
 	elif dataset_module == "fivequbit_code":
 		n = config['n']
 		dataset_config = {
-			'p': 0.01,
-			'var': 0.01,
+			'p': 0.05,
+			'var': 0.03,
 			"sos_eos": config.get("sos_eos", None),
 			"beta": 1
 		}
