@@ -129,7 +129,7 @@ def train_model(model_wrapper, dataset, config, validation_dataset_config, knob_
         lookup_config["beta"] = 1.0
         lookup_config["var"] = 0
         # build a lookuptable for unbiased errors
-        X_baseline, Y_baseline, good_weights = dataset_module.uniform_over_good_examples(n, lookup_config)
+        X_baseline, Y_baseline, good_weights_baseline = dataset_module.uniform_over_good_examples(n, lookup_config)
         minimum_weight_decoder = baselines.LookupTable()
         
     else:
@@ -149,7 +149,7 @@ def train_model(model_wrapper, dataset, config, validation_dataset_config, knob_
     if dataset in ["toric_code"]:
         minimum_weight_decoder.make_decoder(X, Y_no_sos_eos)
     elif dataset in ["steane_code", "fivequbit_code"]:
-        minimum_weight_decoder.train_on_histogram(X_baseline, Y_baseline_no_sos_eos, good_weights)
+        minimum_weight_decoder.train_on_histogram(X_baseline, Y_baseline_no_sos_eos, good_weights_baseline)
     minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y_no_sos_eos, val_weights)
     log_print("baseline acc: {}".format(minimum_weight_val_acc))
 

@@ -17,7 +17,8 @@ def main(config):
 	# underlying data distribution. This virtual sampling is done
 	# just-in-time.
 	dataset_module = config.get("dataset_module")
-	toric_exp = "novar" # options: var, novar
+	use_variance = config.get("use_variance")
+
 	if dataset_module == "toy_problem":
 		n = config['n']
 		# this dataset describes what data the model will be evaluated on.
@@ -64,8 +65,8 @@ def main(config):
 	elif dataset_module == "fivequbit_code":
 		n = config['n']
 		dataset_config = {
-			'p': 0.05,
-			'var': 0.03,
+			'p': 0.01,
+			'var': 0.01,
 			"sos_eos": config.get("sos_eos", None),
 			"beta": 1
 		}
@@ -101,10 +102,10 @@ def main(config):
 		# Load in the tuning deck parameters
 		knob_settings = yaml["knob_settings"]
 		tune_model.validate_knob_settings(config, knob_settings, dataset_config, logger)
-		if dataset_module == "toric_code" and toric_exp == "novar":
+		if dataset_module in ["toric_code", "steane_code", "fivequbit_code"] and use_variance == "novar":
 			print("NOVAR EXPERIMENT")
 			knob_settings["var"] = 0
-		elif dataset_module == "toric_code" and toric_exp == "var":
+		elif dataset_module in ["toric_code", "steane_code", "fivequbit_code"] and use_variance == "var":
 			print("VAR EXPERIMENT")
 			knob_settings["var"] = dataset_config.get("var")
 		# Note: anything in hyper_config will evantually overwrite the corresponding key in config
@@ -127,11 +128,13 @@ if __name__ == "__main__":
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 
 	# # # important stuff # # # # # # # # # 
-	only_good_examples = False
+	only_good_examples = True
 	mode = "train" # options: train, tune - if tune, uses multiprocessing resources
 	dataset_module = "fivequbit_code" # options: toy_problem, toric_code, steane_code, fivequbit_code
 	# dataset_module = "toy_problem_unbiased" # options: toy_problem, toric_code
 	MODEL = "transformer" # options: cnn, transformer
+	use_variance = "var" # options: var, novar
+
 	# # # # # # # ## # # # # # # # # # # # # 
 
 	if dataset_module == "toy_problem" or dataset_module == "toy_problem_unbiased":
@@ -158,18 +161,19 @@ if __name__ == "__main__":
 		"device": "cpu", 
 		"n": n,
 		"only_good_examples": only_good_examples, 
+		"use_variance": use_variance,
 		# n_batches controls the number of minibatches per epoch, i.e. gradient updates per epoch. 
 		# Total training data is n_batches * batch_size.
 		"n_batches": 8, 
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 2,
+		"max_epochs": 2000,
 		"patience": 600,  
 		"opt": "adam",
 		"mode": mode,
 		"input_dim": input_dim,
 		"output_dim": output_dim,
-		"lr": 0.003, # !OVERWRITE
+		"lr": 0.005, # !OVERWRITE
 		"batch_size": 250, # !OVERWRITE # note: 1994:=infinity (virtual) training data is weighted by underlying distribution
 		"dropout": 0.05, # !OVERWRITE
 	}

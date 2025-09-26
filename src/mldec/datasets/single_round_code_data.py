@@ -277,7 +277,10 @@ def make_variance_noise_model(n, config, return_probs=False):
         # np.random.seed(222)
         # p_samp = np.random.normal(p, var, size=n)
         p_samp = np.array([0.10890275, 0.05827309, 0.06375975, 0.08003794, 0.02708494,
-       0.07165783, 0.02283591, 0.0800562 , 0.03437773])[:n]
+            0.07165783, 0.02283591, 0.0800562 , 0.03437773])[:n]
+    elif (p==0.01 and var == 0.01):
+        p_samp = np.array([0.02717184, 0.01324693, 0.00525457, 0.00862082, 0.0152494 ,
+            0.00642164, 0.00271795, 0.00357914, 0.00682952])[:n]
     else:
         raise NotImplementedError("sample first, then hardcode.")
 
