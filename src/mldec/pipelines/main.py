@@ -48,13 +48,30 @@ def main(config):
 	elif dataset_module == "toric_code":
 		n = config['n']
 		dataset_config = {
-			'p': 0.05,
-			'var': 0.03,
+			'p': 0.01,
+			'var': 0.01,
+			"sos_eos": config.get("sos_eos", None),
+			"beta": 1
+		}
+	elif dataset_module == "steane_code":
+		n = config['n']
+		dataset_config = {
+			'p': 0.01,
+			'var': 0.01,
+			"sos_eos": config.get("sos_eos", None),
+			"beta": 1
+		}
+	elif dataset_module == "fivequbit_code":
+		n = config['n']
+		dataset_config = {
+			'p': 0.01,
+			'var': 0.01,
 			"sos_eos": config.get("sos_eos", None),
 			"beta": 1
 		}
 	else:
 		raise ValueError("Unknown dataset module")
+	dataset_config["dataset_module"] = dataset_module
 	
 	abs_path = os.path.dirname(os.path.abspath(__file__))
 	timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -97,6 +114,7 @@ def main(config):
 		tune_model.tune_hyperparameters_multiprocessing(hyper_config, hyper_settings, dataset_module, config, dataset_config, knob_settings)
 	else:
 		model_wrapper = initialize.initialize_model(config)
+		knob_settings = dataset_config
 		train_model.train_model(model_wrapper, dataset_module, config, dataset_config, knob_settings)
 
 if __name__ == "__main__":
@@ -110,9 +128,9 @@ if __name__ == "__main__":
 
 	# # # important stuff # # # # # # # # # 
 	only_good_examples = False
-	mode = "tune" # options: train, tune
-	# dataset_module = "toric_code" # options: toy_problem, toric_code
-	dataset_module = "toy_problem_unbiased" # options: toy_problem, toric_code
+	mode = "train" # options: train, tune - if tune, uses multiprocessing resources
+	dataset_module = "fivequbit_code" # options: toy_problem, toric_code, steane_code, fivequbit_code
+	# dataset_module = "toy_problem_unbiased" # options: toy_problem, toric_code
 	MODEL = "transformer" # options: cnn, transformer
 	# # # # # # # ## # # # # # # # # # # # # 
 
@@ -122,6 +140,14 @@ if __name__ == "__main__":
 		output_dim = n
 	elif dataset_module == "toric_code":
 		n = 9
+		input_dim = n - 1
+		output_dim = 2
+	elif dataset_module == "steane_code":
+		n = 7
+		input_dim = n - 1
+		output_dim = 2
+	elif dataset_module == "fivequbit_code":
+		n = 5
 		input_dim = n - 1
 		output_dim = 2
 	only_good_str = "_only_good" if only_good_examples else ""
@@ -137,15 +163,15 @@ if __name__ == "__main__":
 		"n_batches": 8, 
 		"dataset_module": dataset_module,
 		# Training config: 
-		"max_epochs": 10000,
+		"max_epochs": 2,
 		"patience": 600,  
 		"opt": "adam",
 		"mode": mode,
 		"input_dim": input_dim,
 		"output_dim": output_dim,
-		# "lr": 0.003, # !OVERWRITE
-		# "batch_size": 250, # !OVERWRITE # note: 1994:=infinity (virtual) training data is weighted by underlying distribution
-		# "dropout": 0.05, # !OVERWRITE
+		"lr": 0.003, # !OVERWRITE
+		"batch_size": 250, # !OVERWRITE # note: 1994:=infinity (virtual) training data is weighted by underlying distribution
+		"dropout": 0.05, # !OVERWRITE
 	}
 
 	if config.get("model") == "ffnn":
@@ -166,11 +192,11 @@ if __name__ == "__main__":
 		config["sos_eos"] = (0, 0)
 		model_config = {
 			"model": "transformer",
-			# "d_model": 16, # !OVERWRITE
-			# "nhead": 4, # !OVERWRITE
-			# "num_encoder_layers": 2, # !OVERWRITE
-			# "num_decoder_layers": 2, # !OVERWRITE
-			# "dim_feedforward": 8, # !OVERWRITE
+			"d_model": 16, # !OVERWRITE
+			"nhead": 4, # !OVERWRITE
+			"num_encoder_layers": 2, # !OVERWRITE
+			"num_decoder_layers": 2, # !OVERWRITE
+			"dim_feedforward": 8, # !OVERWRITE
 		}
 
 	config.update(model_config)

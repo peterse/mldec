@@ -133,6 +133,50 @@ class MinimumWeightPerfectMatching():
         return torch.tensor(Ypred)
 
 
+class SteaneDecoder():
+    """Compute MWPM for an input toric syndrome(s)"""
+
+    def __init__(self, L=3):
+        self.n = 7
+        self.generators_L = None
+        self.lookup = None
+
+    def make_decoder(self, X, Y, error_probs=None):
+        _, _, Hx, Hz = steane_code.generators_STL_Hx_Hz(self.n)
+        Hx = torch.tensor(Hx)
+        Hz = torch.tensor(Hz)
+        weights = None
+        if error_probs is not None:
+            weights = np.log( (1- error_probs) / error_probs)
+        self.matching_x = Matching(Hx, weights=weights)
+        self.matching_z = Matching(Hz, weights=weights)
+        # to decode in the DDD setting we need a lookup table mapping errors to logicals
+        # (or you can implement gaussian elim, whatever).
+        self.lookup = toric_code.build_lst_lookup(self.L, cache=True)
+
+    def predict(self, X):
+        """
+        
+        Args:
+            X: shape (N, n-1) array of syndromes, in concatenated [sigma_x, sigma_z] format
+        """
+        if isinstance(X, torch.Tensor):
+            X = X.numpy()
+        sigma_x = X[:,:(self.n - 1)//2] # detections of Z-type events, i.e. x stabilizers
+        sigma_z = X[:,(self.n - 1)//2:] # detections of X-type events
+
+        # predict the physical errors
+        xerr_pred = self.matching_z.decode_batch(np.array(sigma_z))
+        zerr_pred = self.matching_x.decode_batch(np.array(sigma_x))
+        error_preds = np.concatenate((xerr_pred.reshape(-1, self.n), zerr_pred.reshape(-1, self.n)), axis=1)
+        error_idx = bit_tools.bits_to_ints(error_preds)
+        # get the logical operator such that \ell*S contains this error
+        sigma_logical = self.lookup[error_idx]
+        Ypred = sigma_logical[:, self.n-1:]
+        return torch.tensor(Ypred)
+
+
+
 class CyclesMinimumWeightPerfectMatching():
 
     def __init__(self, detector_error_model,L=3):

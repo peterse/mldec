@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 import itertools
-from mldec.codes import toric_code, code_utils
+from mldec.codes import toric_code, code_utils, steane_code, fivequbit_code
 from mldec.utils import bit_tools
 from mldec.datasets import tools
 import torch
@@ -14,35 +14,44 @@ CACHE = os.path.join(abspath, "cache")
 def config_to_fname(n, config, only_good_examples=False):
     """Caching utility.
 
+    The logic here is that only the probabilities w/r to a stabilizer prism differ between 
+    different error rates. So all p_TL share the same "X" and "Y" (which represent the syndromes and logicals)
+    and just assign different weights to each stabilizer coset.
+
     warning: don't use config values with more than 3 significant digits.
     """
     ### FIXME: no more alpha?
     only_good = ""
     if only_good_examples:
         only_good = "_only_good"
-    return f"toric_code_n{n}_vardepol_p{config['p']:4.3f}_var{config['var']:4.3f}_beta{config['beta']:4.3f}.pt"
+    dataset = config.get("dataset_module")
+    return f"{dataset}_n{n}_vardepol_p{config['p']:4.3f}_var{config['var']:4.3f}_beta{config['beta']:4.3f}.pt"
 
 
-def try_to_load_otherwise_make(fname):
+def try_to_load_otherwise_make(data_directory, fname):
     """Automate everything."""
     global CACHE
     if not os.path.exists(CACHE):
         os.makedirs(CACHE)
-    path = os.path.join(CACHE, fname)
+    data_path = os.path.join(CACHE, data_directory)
+    path = os.path.join(data_path, fname)
     if os.path.exists(path):
         probs = torch.load(path)
-        X = torch.load(os.path.join(CACHE, "X.pt"))
-        Y = torch.load(os.path.join(CACHE, "Y.pt"))
+        X = torch.load(os.path.join(data_path, "X.pt"))
+        Y = torch.load(os.path.join(data_path, "Y.pt"))
         return X, Y, probs
     return None
 
 
-def cache_data(X, Y, probs, fname):
+def cache_data(X, Y, probs, data_directory, fname):
     global CACHE
-    path = os.path.join(CACHE, fname)
+    if not os.path.exists(os.path.join(CACHE, data_directory)):
+        os.makedirs(os.path.join(CACHE, data_directory))
+    data_path = os.path.join(CACHE, data_directory)
+    path = os.path.join(data_path, fname)
     torch.save(probs, path, _use_new_zipfile_serialization=False)
-    torch.save(X, os.path.join(CACHE, "X.pt"), _use_new_zipfile_serialization=False)
-    torch.save(Y, os.path.join(CACHE, "Y.pt"), _use_new_zipfile_serialization=False)
+    torch.save(X, os.path.join(data_path, "X.pt"), _use_new_zipfile_serialization=False)
+    torch.save(Y, os.path.join(data_path, "Y.pt"), _use_new_zipfile_serialization=False)
 
 
 def uniform_over_good_examples(n, config, cache=True):
@@ -70,7 +79,7 @@ def uniform_over_good_examples(n, config, cache=True):
     return X, Y, probs
 
 
-def create_dataset_training(n, config, cache=True):
+def create_dataset_training(n, config, cache=True, css=True):
     """Create a set of 'true' weights to be sampled for a training set.
 
     config contents:
@@ -81,14 +90,12 @@ def create_dataset_training(n, config, cache=True):
         p_TL: (2**(n+1)) array of coset probabilities, indexed by (syndrome, logical)
     
     """
-    if n != 9:
-        raise NotImplementedError("Only L=3 is implemented for now.")
-    L = 3
-
     sos_eos = config.get("sos_eos")
+    data_directory = config.get("dataset_module")
+
     if cache:
-        target = config_to_fname(n, config)
-        out = try_to_load_otherwise_make(target)
+        target = config_to_fname(n, config, data_directory)
+        out = try_to_load_otherwise_make(data_directory, target)
         if out is not None:
             X, Y, p_TL = out
             # we don't save datasets with eos/sos, that's a waste of time. just reoload them
@@ -99,7 +106,19 @@ def create_dataset_training(n, config, cache=True):
         
     # We start by building the prism. At the same time, we keep track of the output
     # set of syndromes and logicals, in the order that their wieghts are computed.
-    generators_S, generators_T, generators_L, Hx, Hz = toric_code.generators_STL_Hx_Hz(L)
+    if data_directory == "toric_code":
+        assert n == 9
+        L = 3
+        generators_S, generators_T, generators_L, Hx, Hz = toric_code.generators_STL_Hx_Hz(n)
+    elif data_directory == "steane_code":
+        assert n == 7
+        generators_S, generators_T, generators_L, Hx, Hz = steane_code.generators_STL_Hx_Hz(n)
+    elif data_directory == "fivequbit_code":
+        assert n == 5
+        generators_S, generators_T, generators_L, Hx, Hz = fivequbit_code.generators_STL_Hx_Hz(n)
+        css = False
+    else:
+        raise NotImplementedError("Unknown dataset module")
     # err_prism = np.zeros((2**(n-1), 2**2, 2*n))
     X = np.zeros((2**(n-1), 2**2, n-1)) # indexed by (syndrome, logical, X)
     Y = np.zeros((2**(n-1), 2**2, 2))
@@ -109,10 +128,17 @@ def create_dataset_training(n, config, cache=True):
 
     for i_sigma, pure_error_lst in enumerate(code_utils.powerset(generators_T)):
         pure_error = code_utils.operator_sequence_to_stim(pure_error_lst, n)
-        xerr, zerr = pure_error.to_numpy()
-        sigma_z = (Hz @ xerr) % 2
-        sigma_x = (Hx @ zerr) % 2
-        sigma = np.concatenate((sigma_x, sigma_z), axis=0)
+
+        if css:
+            xerr, zerr = pure_error.to_numpy()
+            sigma_z = (Hz @ xerr) % 2
+            sigma_x = (Hx @ zerr) % 2
+            sigma = np.concatenate((sigma_x, sigma_z), axis=0)
+        else:
+            H = np.concatenate((Hx, Hz), axis=1)
+            perr = pure_error.to_numpy()
+            perr = np.array([perr[0], perr[1]]).flatten()
+            sigma = (H @ perr) % 2
         X[i_sigma,:] = sigma
         logical_masks = np.array(list(itertools.product([0, 1], repeat=2)))
         for j_logical, logical_mask in enumerate(logical_masks):
@@ -145,7 +171,7 @@ def create_dataset_training(n, config, cache=True):
     p_TL = torch.tensor(p_TL, dtype=torch.float32)
 
     if cache:
-        cache_data(X, Y, p_TL, target)
+        cache_data(X, Y, p_TL, data_directory, target)
     # only add sos/eos after saving
     if sos_eos:
         sos, eos = sos_eos
@@ -175,8 +201,9 @@ def sample_virtual_XY(probs, m, n, dataset_config, cache=True):
 
     """
     if cache:
-        target = config_to_fname(n, dataset_config)
-        out = try_to_load_otherwise_make(target)
+        data_directory = dataset_config.get("dataset_module")
+        target = config_to_fname(n, dataset_config, data_directory)
+        out = try_to_load_otherwise_make(data_directory, target)
         if out is None:
             raise ValueError("you haven't cached training data yet.")
         X_full, Y_full, _ = out # shapes (2^(n+1), n-1) and (2^(n+1), 2) respectively
@@ -224,11 +251,11 @@ def make_variance_noise_model(n, config, return_probs=False):
             'beta': scaling factor for the entire vector
         return_probs: if True, return the vector of probabilities instead of the noise model.
     """
-    assert n == 9 
     p = config.get('p')
     # alpha = config.get('alpha')
     var = config.get('var')
     beta = config.get('beta')
+    dataset = config.get('dataset_module')
 
     # Explanation:
     # we want to train many models on the same underlying error model so that the 
@@ -242,6 +269,7 @@ def make_variance_noise_model(n, config, return_probs=False):
     # a random sampling of training examples from a noise model which is itself
     # nonrandom. The solution is to generate a specific noise model with the 
     # properties I wanted, and then fix that without setting any seed.
+
     if var == 0:
         p_samp = p * np.ones(n)
     elif (p == 0.05 and var == 0.03):
@@ -250,9 +278,18 @@ def make_variance_noise_model(n, config, return_probs=False):
         # p_samp = np.random.normal(p, var, size=n)
         p_samp = np.array([0.10890275, 0.05827309, 0.06375975, 0.08003794, 0.02708494,
        0.07165783, 0.02283591, 0.0800562 , 0.03437773])
+    elif (p == 0.01 and var == 0.01 and n == 9):
+        p_samp = np.array([2.96342502e-03, 1.27576969e-03, 1.45865820e-03, 2.00126466e-03,
+       2.36164690e-04, 1.72192766e-03, 9.45304358e-05, 2.00187339e-03,
+       4.79257527e-04])
+    elif (p == 0.01 and var == 0.01 and n == 7):
+        p_samp = np.array([0.02963425, 0.0127577 , 0.01458658, 0.02001265, 0.00236165,
+       0.01721928, 0.0009453])
+    elif (p == 0.01 and var == 0.01 and n == 5):
+        p_samp = np.array([0.02963425, 0.0127577 , 0.01458658, 0.02001265, 0.00236165])
     else:
         raise NotImplementedError("sample first, then hardcode.")
-    
+    assert len(p_samp) == n
     p_samp = p_samp * beta
     if return_probs:
         return p_samp

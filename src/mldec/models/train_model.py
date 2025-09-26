@@ -6,18 +6,18 @@ from mldec.utils import evaluation, training
 from mldec.models import initialize, baselines
 from mldec.pipelines import loggingx
 
-def train_model(model_wrapper, dataset_module, config, validation_dataset_config, knob_settings, manager=None):
+def train_model(model_wrapper, dataset, config, validation_dataset_config, knob_settings, manager=None):
 
     # de-serializing the dataset module
-    if dataset_module == "toy_problem":
+    if dataset == "toy_problem":
         from mldec.datasets import toy_problem_data
         dataset_module = toy_problem_data
-    elif dataset_module == "toy_problem_unbiased":
+    elif dataset == "toy_problem_unbiased":
         from mldec.datasets import toy_problem_data
         dataset_module = toy_problem_data
-    elif dataset_module == "toric_code":
-        from mldec.datasets import toric_code_data
-        dataset_module = toric_code_data
+    elif dataset == "toric_code" or dataset == "steane_code" or dataset == "fivequbit_code":
+        from mldec.datasets import single_round_code_data
+        dataset_module = single_round_code_data
     
 
     device = torch.device(config.get('device'))
@@ -109,31 +109,49 @@ def train_model(model_wrapper, dataset_module, config, validation_dataset_config
     log_print(downsampled_train_weights)
     log_print("Test val_weights:")
     log_print(val_weights)
-    if config.get("dataset_module") == "toric_code":
+    if dataset in ["toric_code", "steane_code", "fivequbit_code"]:
         log_print("Probability of no error in training error model:")
-        log_print(toric_code_data.make_variance_noise_model(n, training_dataset_config)(np.zeros(2*n), n))
+        log_print(dataset_module.make_variance_noise_model(n, training_dataset_config)(np.zeros(2*n), n))
 
     # we want two things: a lookup table for the training set, and baseline accuracy for training/validation
     t_start = time.time()
     # Baseline accuracies
     lookup_decoder = baselines.LookupTable()
-    if config.get("dataset_module") == "toy_problem" or config.get("dataset_module") == "toy_problem_unbiased":
+    if dataset in ["toy_problem", "toy_problem_unbiased"]:
         minimum_weight_decoder = baselines.RepetitionCodeMinimumWeight()
-    elif config.get("dataset_module") == "toric_code":
+
+    elif dataset in ["toric_code"]:
         minimum_weight_decoder = baselines.MinimumWeightPerfectMatching()
+
+    elif dataset in ["steane_code", "fivequbit_code"]:
+        # copy the dataset config, but force beta=1, var=0
+        lookup_config = copy.deepcopy(training_dataset_config)
+        lookup_config["beta"] = 1.0
+        lookup_config["var"] = 0
+        # build a lookuptable for unbiased errors
+        X_baseline, Y_baseline, good_weights = dataset_module.uniform_over_good_examples(n, lookup_config)
+        minimum_weight_decoder = baselines.LookupTable()
+        
     else:
         raise ValueError("Unknown dataset module")
     # we need to strip the EOS/SOS from the training data, if applicable.
     if validation_dataset_config.get("sos_eos") is not None:
         Y_no_sos_eos = torch.clone(Y)[:, 1:-1]
+        Y_baseline_no_sos_eos = torch.clone(Y_baseline)[:, 1:-1]
     else:
         Y_no_sos_eos = torch.clone(Y)
+        Y_baseline_no_sos_eos = torch.clone(Y_baseline)
+
     lookup_decoder.train_on_histogram(X, Y_no_sos_eos, downsampled_train_weights)
     lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y_no_sos_eos, val_weights)
     log_print("lookup acc: {}".format(lookup_val_acc))
-    minimum_weight_decoder.make_decoder(X, Y_no_sos_eos)
+
+    if dataset in ["toric_code"]:
+        minimum_weight_decoder.make_decoder(X, Y_no_sos_eos)
+    elif dataset in ["steane_code", "fivequbit_code"]:
+        minimum_weight_decoder.train_on_histogram(X_baseline, Y_baseline_no_sos_eos, good_weights)
     minimum_weight_val_acc = evaluation.weighted_accuracy(minimum_weight_decoder, X, Y_no_sos_eos, val_weights)
-    log_print("minweight acc: {}".format(minimum_weight_val_acc))
+    log_print("baseline acc: {}".format(minimum_weight_val_acc))
 
     # We will keep the best results (according to val acc) and return only those.
     best_results = None
