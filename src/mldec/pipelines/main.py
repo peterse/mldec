@@ -196,11 +196,11 @@ if __name__ == "__main__":
 		config["sos_eos"] = (0, 0)
 		model_config = {
 			"model": "transformer",
-			"d_model": 16, # !OVERWRITE
-			"nhead": 4, # !OVERWRITE
-			"num_encoder_layers": 2, # !OVERWRITE
-			"num_decoder_layers": 2, # !OVERWRITE
-			"dim_feedforward": 8, # !OVERWRITE
+			# "d_model": 16, # !OVERWRITE
+			# "nhead": 4, # !OVERWRITE
+			# "num_encoder_layers": 2, # !OVERWRITE
+			# "num_decoder_layers": 2, # !OVERWRITE
+			# "dim_feedforward": 8, # !OVERWRITE
 		}
 
 	config.update(model_config)
