@@ -59,7 +59,7 @@ class LookupTable():
             if ypred is None:
                 ypred = np.array([0]*self.output_len)
             out.append(ypred)
-        return torch.tensor(out)
+        return torch.tensor(np.array(out))
     
 
 class RepetitionCodeMinimumWeight():
@@ -86,6 +86,7 @@ class RepetitionCodeMinimumWeight():
             X = X.numpy()
         for x in X:
             out.append(self.table[tuple(x)])
+        out = np.array(out)
         return torch.tensor(out)
 
 

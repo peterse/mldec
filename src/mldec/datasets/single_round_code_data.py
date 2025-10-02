@@ -87,6 +87,11 @@ def create_dataset_training(n, config, cache=True, css=True):
     """Create a set of 'true' weights to be sampled for a training set.
 
     config contents:
+        'p': average probability
+        'var': variance of errors 
+        'beta': scaling factor for the entire vector
+        'dataset_module': "toric_code", "steane_code", "fivequbit_code"
+        'sos_eos': Tuple (sos, eos) to append to the targets. If None, no tokens are appended.
 
     Returns:
         X: (2**(n+1), n-1) array of syndrome bitstrings, indexed by (syndrome, logical)
@@ -96,6 +101,8 @@ def create_dataset_training(n, config, cache=True, css=True):
     """
     sos_eos = config.get("sos_eos")
     data_directory = config.get("dataset_module")
+    if data_directory is None:
+        raise ValueError("must provide dataset_module key in config")
 
     if cache:
         target = config_to_fname(n, config, data_directory)
