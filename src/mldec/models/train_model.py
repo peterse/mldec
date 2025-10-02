@@ -124,23 +124,23 @@ def train_model(model_wrapper, dataset, config, validation_dataset_config, knob_
         minimum_weight_decoder = baselines.MinimumWeightPerfectMatching()
 
     elif dataset in ["steane_code", "fivequbit_code"]:
-        # copy the dataset config, but force beta=1, var=0
+        # copy the dataset config, but force beta=1, var=0. This represents a decoder that
+        # is unaware of spatial inhomogeniety (bias) in the error rates
         lookup_config = copy.deepcopy(training_dataset_config)
         lookup_config["beta"] = 1.0
         lookup_config["var"] = 0
         # build a lookuptable for unbiased errors
         X_baseline, Y_baseline, good_weights_baseline = dataset_module.uniform_over_good_examples(n, lookup_config)
         minimum_weight_decoder = baselines.LookupTable()
-        
     else:
         raise ValueError("Unknown dataset module")
     # we need to strip the EOS/SOS from the training data, if applicable.
     if validation_dataset_config.get("sos_eos") is not None:
-        Y_no_sos_eos = torch.clone(Y)[:, 1:-1]
-        Y_baseline_no_sos_eos = torch.clone(Y_baseline)[:, 1:-1]
+        Y_no_sos_eos = torch.clone(Y)[:, 1:-1].detach()
+        Y_baseline_no_sos_eos = torch.clone(Y_baseline)[:, 1:-1].detach()
     else:
-        Y_no_sos_eos = torch.clone(Y)
-        Y_baseline_no_sos_eos = torch.clone(Y_baseline)
+        Y_no_sos_eos = torch.clone(Y).detach()
+        Y_baseline_no_sos_eos = torch.clone(Y_baseline).detach()
 
     lookup_decoder.train_on_histogram(X, Y_no_sos_eos, downsampled_train_weights)
     lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y_no_sos_eos, val_weights)
