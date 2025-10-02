@@ -7,12 +7,12 @@ hyperparameters:
   num_decoder_layers: [1]
   nhead: [2, 4]
   dim_feedforward: [4, 8]
-  batch_size: [8, 16, 32, 64, 128, 512, 2048, 16384, 1994]
+  batch_size: [8, 16, 32, 64, 128, 512, 1024, 2048, 4096, 16384, 1994]
 
 knob_settings:
-  beta: [3.25]
+  beta: [1, 2, 3]
 
 settings:
   total_cpus: 100
-  num_samples: 450
+  num_samples: 500
   total_gpus: 0

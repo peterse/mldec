@@ -4,15 +4,15 @@ hyperparameters:
   d_model: [8, 12, 16]
   dropout: [0.1, 0.15]
   num_encoder_layers: [1, 2, 3]
-  num_decoder_layers: [1, 2]
+  num_decoder_layers: [1]
   nhead: [2, 4]
   dim_feedforward: [4, 8, 16]
-  # batch_size: [256]
+  batch_size: [8, 16, 32, 64, 128, 512, 1024, 2048, 4096, 1994]
 
 knob_settings:
-  beta: [1]
+  beta: [1, 2, 3]
 
 settings:
   total_cpus: 100
-  num_samples: 200
+  num_samples: 500
   total_gpus: 0

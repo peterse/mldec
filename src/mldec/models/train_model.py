@@ -18,6 +18,8 @@ def train_model(model_wrapper, dataset, config, validation_dataset_config, knob_
     elif dataset == "toric_code" or dataset == "steane_code" or dataset == "fivequbit_code":
         from mldec.datasets import single_round_code_data
         dataset_module = single_round_code_data
+    else:
+        raise ValueError("Unknown dataset module")
     
 
     device = torch.device(config.get('device'))
@@ -131,16 +133,18 @@ def train_model(model_wrapper, dataset, config, validation_dataset_config, knob_
         # build a lookuptable for unbiased errors
         X_baseline, Y_baseline, good_weights_baseline = dataset_module.uniform_over_good_examples(n, lookup_config)
         minimum_weight_decoder = baselines.LookupTable()
-        
+        # we need to strip the EOS/SOS from the training data, if applicable.
+        if validation_dataset_config.get("sos_eos") is not None:
+            Y_baseline_no_sos_eos = torch.clone(Y_baseline)[:, 1:-1]
+        else:
+            Y_baseline_no_sos_eos = torch.clone(Y_baseline)
     else:
         raise ValueError("Unknown dataset module")
     # we need to strip the EOS/SOS from the training data, if applicable.
     if validation_dataset_config.get("sos_eos") is not None:
         Y_no_sos_eos = torch.clone(Y)[:, 1:-1]
-        Y_baseline_no_sos_eos = torch.clone(Y_baseline)[:, 1:-1]
     else:
         Y_no_sos_eos = torch.clone(Y)
-        Y_baseline_no_sos_eos = torch.clone(Y_baseline)
 
     lookup_decoder.train_on_histogram(X, Y_no_sos_eos, downsampled_train_weights)
     lookup_val_acc = evaluation.weighted_accuracy(lookup_decoder, X, Y_no_sos_eos, val_weights)

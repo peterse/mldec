@@ -33,7 +33,6 @@ delay_factors = [0, 1, 1.1, 1.2, 1.3, 1.4, 2, 3, 4, 5]
 ANALYZE_DATA = 2
 if ANALYZE_DATA == 1:
 
-
     for (n, T) in [(5, 5), (5, 6), (5, 7), (9, 10)]:
         fig, ax = plt.subplots(1, 2, figsize=(13, 6))
         # load the data

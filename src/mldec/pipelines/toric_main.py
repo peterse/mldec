@@ -128,7 +128,7 @@ if __name__ == "__main__":
 	# SERIALIZABILITY: All of the config options, hyper options, dataset_config options must be serializable (json)
 
 	# # # important stuff # # # # # # # # # 
-	only_good_examples = True
+	only_good_examples = False
 	mode = "tune" # options: train, tune - if tune, uses multiprocessing resources
 	dataset_module = "toric_code" # options: toy_problem, toric_code, steane_code, fivequbit_code
 	# dataset_module = "toy_problem_unbiased" # options: toy_problem, toric_code
@@ -174,7 +174,7 @@ if __name__ == "__main__":
 		"input_dim": input_dim,
 		"output_dim": output_dim,
 		# "lr": 0.005, # !OVERWRITE
-		"batch_size": 250, # !OVERWRITE # note: 1994:=infinity (virtual) training data is weighted by underlying distribution
+		# "batch_size": 256, # !OVERWRITE # note: 1994:=infinity (virtual) training data is weighted by underlying distribution
 		# "dropout": 0.05, # !OVERWRITE
 	}
 

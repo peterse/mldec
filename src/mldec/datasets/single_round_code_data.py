@@ -34,6 +34,8 @@ def try_to_load_otherwise_make(data_directory, fname):
     if not os.path.exists(CACHE):
         os.makedirs(CACHE)
     data_path = os.path.join(CACHE, data_directory)
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)
     path = os.path.join(data_path, fname)
     if os.path.exists(path):
         probs = torch.load(path)
@@ -45,6 +47,8 @@ def try_to_load_otherwise_make(data_directory, fname):
 
 def cache_data(X, Y, probs, data_directory, fname):
     global CACHE
+    if not os.path.exists(CACHE):
+        os.makedirs(CACHE)
     if not os.path.exists(os.path.join(CACHE, data_directory)):
         os.makedirs(os.path.join(CACHE, data_directory))
     data_path = os.path.join(CACHE, data_directory)
@@ -278,9 +282,19 @@ def make_variance_noise_model(n, config, return_probs=False):
         # p_samp = np.random.normal(p, var, size=n)
         p_samp = np.array([0.10890275, 0.05827309, 0.06375975, 0.08003794, 0.02708494,
             0.07165783, 0.02283591, 0.0800562 , 0.03437773])[:n]
-    elif (p==0.01 and var == 0.01):
-        p_samp = np.array([0.02717184, 0.01324693, 0.00525457, 0.00862082, 0.0152494 ,
-            0.00642164, 0.00271795, 0.00357914, 0.00682952])[:n]
+    # elif (p==0.01 and var == 0.01): disabled to prevent accidental usage
+    #     p_samp = np.array([0.02717184, 0.01324693, 0.00525457, 0.00862082, 0.0152494 ,
+    #         0.00642164, 0.00271795, 0.00357914, 0.00682952])[:n]
+    elif (p==0.001 and var == 0.001):
+        if n == 5:
+            p_samp = np.array([0.00296343, 0.00127577, 0.00145866, 0.00200126, 0.00023616])
+        elif n == 7:
+            p_samp = np.array([2.96342502e-03, 1.27576969e-03, 1.45865820e-03, 2.00126466e-03,
+                            2.36164690e-04, 1.72192766e-03, 9.45304358e-05])
+        elif n == 9:
+            p_samp = np.array([2.96342502e-03, 1.27576969e-03, 1.45865820e-03, 2.00126466e-03,
+                        2.36164690e-04, 1.72192766e-03, 9.45304358e-05, 2.00187339e-03,
+                        4.79257527e-04])
     else:
         raise NotImplementedError("sample first, then hardcode.")
 

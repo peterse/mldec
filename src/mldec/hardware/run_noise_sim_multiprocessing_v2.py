@@ -24,7 +24,6 @@ def main():
     # export OMP_NUM_THREADS=72
 
 
-    print("available cpus: ", os.cpu_count(), "using ", max_workers)
 
     # Set the number of qubits and rounds of syndrome measurement.
 
@@ -38,6 +37,8 @@ def main():
     num_repeats_plus_one_arr = [1, 2, 3, 4, 5]
     n_T_arr = [(3, 3), (5, 5), (6, 6), (7, 7), (8, 8)]
     max_workers = 72 # num threads
+
+    print("available cpus: ", os.cpu_count(), "using ", max_workers)
 
     for (n, T) in n_T_arr:
         print("=== Simulation Parameters Summary ===")
